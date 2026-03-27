@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>내 강의실 | CNL PIP Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;0,600;1,300;1,500&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root {
+      --navy:   #1a3f7a;
+      --navy2:  #1e4fa0;
+      --dark:   #0d1b2a;
+      --cream:  #f5f0e8;
+      --light:  #fafaf7;
+      --gray:   #6b7280;
+      --white:  #ffffff;
+      --green:  #16a34a;
+      --yellow: #ca8a04;
+      --red:    #dc2626;
+      --ff-serif: 'Cormorant Garamond',serif;
+      --ff-sans:  'Noto Sans KR',sans-serif;
+    }
+    html { scroll-behavior:smooth; }
+    body { font-family:var(--ff-sans); font-size:14px; line-height:1.75; color:var(--dark); background:#f3f6fb; overflow-x:hidden; }
+
+    /* ── SIDEBAR ── */
+    .sidebar { position:fixed; top:0; left:0; width:240px; height:100vh; background:var(--dark); z-index:200; display:flex; flex-direction:column; overflow-y:auto; }
+    .sidebar-logo { padding:24px 20px 20px; border-bottom:1px solid rgba(255,255,255,.07); }
+    .sidebar-logo-badge { background:var(--navy2); color:#fff; font-family:var(--ff-serif); font-size:11px; font-weight:600; letter-spacing:.1em; padding:3px 8px; display:inline-block; margin-bottom:6px; }
+    .sidebar-logo-title { font-family:var(--ff-serif); font-size:16px; font-weight:600; color:#fff; }
+    .sidebar-logo-sub { font-size:10px; color:rgba(255,255,255,.35); letter-spacing:.08em; margin-top:2px; }
+    .sidebar-user { padding:16px 20px; border-bottom:1px solid rgba(255,255,255,.07); display:flex; align-items:center; gap:12px; }
+    .sidebar-avatar { width:36px; height:36px; border-radius:50%; background:var(--navy2); display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; color:#fff; flex-shrink:0; }
+    .sidebar-user-name { font-size:13px; font-weight:600; color:#fff; line-height:1.3; }
+    .sidebar-user-role { font-size:10px; color:rgba(255,255,255,.4); letter-spacing:.08em; }
+    .sidebar-nav { padding:12px 0; flex:1; }
+    .nav-section-label { font-size:9px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.25); padding:12px 20px 6px; }
+    .sidebar-link { display:flex; align-items:center; gap:10px; padding:10px 20px; font-size:13px; color:rgba(255,255,255,.5); text-decoration:none; transition:all .15s; cursor:pointer; border:none; background:none; width:100%; font-family:var(--ff-sans); }
+    .sidebar-link:hover { background:rgba(255,255,255,.06); color:rgba(255,255,255,.85); }
+    .sidebar-link.active { background:rgba(30,79,160,.25); color:#fff; border-left:3px solid var(--navy2); }
+    .sidebar-link-icon { font-size:15px; flex-shrink:0; }
+    .sidebar-link-badge { margin-left:auto; background:var(--red); color:#fff; font-size:9px; font-weight:700; padding:2px 6px; border-radius:10px; }
+    .sidebar-bottom { padding:16px 20px; border-top:1px solid rgba(255,255,255,.07); }
+    .sidebar-logout { font-size:12px; color:rgba(255,255,255,.3); cursor:pointer; background:none; border:none; font-family:var(--ff-sans); transition:color .2s; }
+    .sidebar-logout:hover { color:rgba(255,255,255,.6); }
+
+    /* ── MAIN ── */
+    .main { margin-left:240px; min-height:100vh; }
+    .topbar { background:#fff; border-bottom:1px solid rgba(26,63,122,.08); padding:0 32px; height:60px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+    .topbar-title { font-family:var(--ff-serif); font-size:18px; font-weight:500; color:var(--navy); }
+    .topbar-right { display:flex; align-items:center; gap:16px; }
+    .topbar-notif { position:relative; cursor:pointer; font-size:18px; color:var(--gray); }
+    .notif-dot { position:absolute; top:-2px; right:-2px; width:8px; height:8px; border-radius:50%; background:var(--red); border:2px solid #fff; }
+    .content { padding:28px 32px; }
+
+    /* ── PROGRESS OVERVIEW ── */
+    .overview-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px; }
+    .ov-card { background:#fff; padding:20px 22px; border-top:3px solid var(--navy); }
+    .ov-label { font-size:11px; font-weight:600; letter-spacing:.08em; color:var(--gray); text-transform:uppercase; margin-bottom:8px; }
+    .ov-value { font-family:var(--ff-serif); font-size:2rem; font-weight:600; color:var(--navy); line-height:1; margin-bottom:4px; }
+    .ov-sub { font-size:11px; color:var(--gray); }
+    .ov-card.green { border-top-color:var(--green); }
+    .ov-card.green .ov-value { color:var(--green); }
+    .ov-card.yellow { border-top-color:var(--yellow); }
+    .ov-card.yellow .ov-value { color:var(--yellow); }
+
+    /* ── 전체 진행률 바 ── */
+    .progress-bar-wrap { background:#fff; padding:24px 28px; margin-bottom:28px; }
+    .prog-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+    .prog-title { font-weight:700; font-size:14px; color:var(--navy); }
+    .prog-pct { font-family:var(--ff-serif); font-size:22px; font-weight:600; color:var(--navy); }
+    .prog-bar { height:10px; background:#e9eef6; border-radius:5px; overflow:hidden; }
+    .prog-bar-fill { height:100%; background:linear-gradient(90deg, var(--navy), var(--navy2)); border-radius:5px; transition:width 1s ease; }
+    .prog-steps { display:flex; gap:0; margin-top:12px; }
+    .prog-step { flex:1; text-align:center; font-size:10px; color:var(--gray); }
+    .prog-step.done { color:var(--navy); font-weight:600; }
+    .prog-step.current { color:var(--navy2); font-weight:700; }
+
+    /* ── 2단 레이아웃 ── */
+    .two-col { display:grid; grid-template-columns:1fr 380px; gap:20px; }
+
+    /* ── 커리큘럼 목록 ── */
+    .card { background:#fff; padding:0; overflow:hidden; }
+    .card-header { padding:20px 24px 16px; border-bottom:1px solid rgba(26,63,122,.06); display:flex; align-items:center; justify-content:space-between; }
+    .card-title { font-weight:700; font-size:14px; color:var(--navy); }
+    .card-badge { font-size:10px; font-weight:700; letter-spacing:.08em; padding:3px 10px; }
+    .badge-blue { background:rgba(26,63,122,.08); color:var(--navy); }
+    .curriculum-item { padding:16px 24px; border-bottom:1px solid rgba(26,63,122,.05); display:flex; align-items:center; gap:14px; transition:background .15s; cursor:pointer; }
+    .curriculum-item:last-child { border-bottom:none; }
+    .curriculum-item:hover:not(.locked) { background:#fafbff; }
+    .curriculum-item.locked { opacity:.45; cursor:default; }
+    .curriculum-item.current { background:#f0f5ff; }
+    .ci-num { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; }
+    .ci-num.done { background:var(--green); color:#fff; }
+    .ci-num.current { background:var(--navy2); color:#fff; }
+    .ci-num.locked { background:#e5e7eb; color:#9ca3af; }
+    .ci-body { flex:1; }
+    .ci-title { font-size:13px; font-weight:600; color:var(--dark); margin-bottom:2px; }
+    .ci-meta { font-size:11px; color:var(--gray); }
+    .ci-status { flex-shrink:0; }
+    .status-pill { font-size:10px; font-weight:700; letter-spacing:.06em; padding:3px 10px; border-radius:20px; }
+    .sp-done { background:rgba(22,163,74,.1); color:var(--green); }
+    .sp-current { background:rgba(30,79,160,.1); color:var(--navy2); }
+    .sp-locked { background:rgba(107,114,128,.1); color:var(--gray); }
+    .sp-pending { background:rgba(202,138,4,.1); color:var(--yellow); }
+
+    /* ── 현재 수강 강의 (오른쪽) ── */
+    .current-lecture { background:#fff; }
+    .lecture-thumb { background:var(--navy); aspect-ratio:16/9; position:relative; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+    .lecture-thumb-bg { position:absolute; inset:0; background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px); background-size:24px 24px; }
+    .lecture-play-btn { width:60px; height:60px; border-radius:50%; background:rgba(255,255,255,.15); border:2px solid rgba(255,255,255,.4); display:flex; align-items:center; justify-content:center; font-size:20px; position:relative; z-index:1; cursor:pointer; transition:background .2s; }
+    .lecture-play-btn:hover { background:rgba(255,255,255,.28); }
+    .lecture-num-badge { position:absolute; top:12px; left:12px; background:var(--navy2); color:#fff; font-size:10px; font-weight:700; padding:3px 10px; z-index:1; }
+    .lecture-body { padding:20px 22px; }
+    .lecture-cat { font-size:10px; font-weight:700; letter-spacing:.1em; color:var(--navy2); text-transform:uppercase; margin-bottom:6px; }
+    .lecture-title { font-family:var(--ff-serif); font-size:17px; font-weight:600; color:var(--navy); margin-bottom:8px; line-height:1.4; }
+    .lecture-desc { font-size:12px; color:var(--gray); line-height:1.8; margin-bottom:16px; }
+    .lecture-meta { display:flex; gap:14px; font-size:11px; color:var(--gray); margin-bottom:18px; }
+    .btn-watch { width:100%; padding:13px; background:var(--navy); color:#fff; border:none; font-family:var(--ff-sans); font-size:13px; font-weight:700; letter-spacing:.06em; cursor:pointer; transition:background .2s; }
+    .btn-watch:hover { background:var(--navy2); }
+
+    /* ── 과제 섹션 ── */
+    .assignment-card { background:#fff; margin-top:20px; }
+    .assignment-item { padding:18px 24px; border-bottom:1px solid rgba(26,63,122,.05); }
+    .assignment-item:last-child { border-bottom:none; }
+    .ai-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px; gap:12px; }
+    .ai-title { font-size:13px; font-weight:600; color:var(--dark); line-height:1.4; }
+    .ai-lecture { font-size:11px; color:var(--gray); margin-top:2px; }
+    .ai-deadline { font-size:11px; color:var(--red); font-weight:600; }
+    .ai-actions { display:flex; gap:8px; align-items:center; margin-top:10px; }
+    .btn-upload { font-size:12px; font-weight:700; background:var(--navy); color:#fff; border:none; padding:8px 18px; cursor:pointer; font-family:var(--ff-sans); letter-spacing:.04em; transition:background .2s; }
+    .btn-upload:hover { background:var(--navy2); }
+    .btn-upload.submitted { background:var(--green); cursor:default; }
+    .btn-resubmit { font-size:12px; font-weight:600; background:transparent; color:var(--navy); border:1.5px solid rgba(26,63,122,.2); padding:7px 14px; cursor:pointer; font-family:var(--ff-sans); transition:all .2s; }
+    .btn-resubmit:hover { border-color:var(--navy); }
+    .file-info { font-size:11px; color:var(--gray); background:#f9fafb; padding:6px 10px; border:1px solid #e5e7eb; display:flex; align-items:center; gap:6px; }
+    .feedback-box { background:#f0f5ff; border-left:3px solid var(--navy2); padding:10px 14px; margin-top:10px; font-size:12px; color:#374151; line-height:1.7; }
+    .feedback-label { font-size:10px; font-weight:700; letter-spacing:.08em; color:var(--navy2); margin-bottom:4px; }
+
+    /* ── 파일 업로드 모달 ── */
+    .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:9999; align-items:center; justify-content:center; padding:20px; }
+    .overlay.open { display:flex; }
+    .modal-box { background:#fff; width:100%; max-width:480px; padding:40px; position:relative; }
+    .modal-close { position:absolute; top:14px; right:18px; background:none; border:none; font-size:22px; cursor:pointer; color:#9ca3af; }
+    .modal-title { font-family:var(--ff-serif); font-size:22px; font-weight:500; color:var(--navy); margin-bottom:6px; }
+    .modal-sub { font-size:13px; color:var(--gray); margin-bottom:22px; line-height:1.7; }
+    .upload-zone { border:2px dashed rgba(26,63,122,.2); padding:36px 20px; text-align:center; cursor:pointer; transition:border-color .2s,background .2s; margin-bottom:16px; }
+    .upload-zone:hover { border-color:var(--navy); background:#f8faff; }
+    .upload-zone-icon { font-size:32px; margin-bottom:10px; }
+    .upload-zone-text { font-size:13px; color:var(--gray); line-height:1.7; }
+    .upload-zone-text strong { color:var(--navy); }
+    .upload-zone-hint { font-size:11px; color:#9ca3af; margin-top:6px; }
+    .mf { margin-bottom:14px; }
+    .mf label { display:block; font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--gray); margin-bottom:5px; }
+    .mf textarea { width:100%; background:#f9f9f6; border:1px solid rgba(13,27,42,.12); padding:10px 12px; font-family:var(--ff-sans); font-size:13px; color:var(--dark); outline:none; resize:vertical; min-height:80px; transition:border-color .2s; }
+    .mf textarea:focus { border-color:var(--navy); }
+    .btn-full { width:100%; padding:13px; background:var(--navy); color:#fff; border:none; font-family:var(--ff-sans); font-size:13px; font-weight:700; letter-spacing:.06em; cursor:pointer; transition:background .2s; }
+    .btn-full:hover { background:var(--navy2); }
+    .ok-msg { display:none; background:#f0fdf4; border:1px solid rgba(22,163,74,.2); color:var(--green); font-size:13px; padding:10px 12px; margin-bottom:14px; }
+
+    /* ── 동영상 플레이어 모달 ── */
+    .player-modal-box { background:#000; width:100%; max-width:860px; position:relative; }
+    .player-close { position:absolute; top:-36px; right:0; background:none; border:none; font-size:22px; cursor:pointer; color:rgba(255,255,255,.7); }
+    .player-wrap { position:relative; padding-bottom:56.25%; height:0; }
+    .player-wrap iframe { position:absolute; top:0; left:0; width:100%; height:100%; border:none; }
+    .player-info { background:#111; padding:18px 22px; }
+    .player-title { font-family:var(--ff-serif); font-size:18px; font-weight:500; color:#fff; margin-bottom:4px; }
+    .player-meta { font-size:12px; color:rgba(255,255,255,.4); }
+
+    /* ── 반응형 ── */
+    @media(max-width:1100px) { .two-col{grid-template-columns:1fr} .overview-grid{grid-template-columns:1fr 1fr} }
+    @media(max-width:768px) {
+      .sidebar{transform:translateX(-100%);transition:transform .3s}
+      .sidebar.open{transform:translateX(0)}
+      .main{margin-left:0}
+      .topbar,.content{padding-left:20px;padding-right:20px}
+      .overview-grid{grid-template-columns:1fr 1fr}
+    }
+    @media(max-width:480px) { .overview-grid{grid-template-columns:1fr} }
+  </style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-badge">CNL</div>
+    <div class="sidebar-logo-title">PIP Platform</div>
+    <div class="sidebar-logo-sub">성과향상 프로그램</div>
+  </div>
+  <div class="sidebar-user">
+    <div class="sidebar-avatar">홍</div>
+    <div>
+      <div class="sidebar-user-name">홍길동</div>
+      <div class="sidebar-user-role">참여자 · (주)OO기업</div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">메인</div>
+    <button class="sidebar-link active" onclick="showSection('dashboard')">
+      <span class="sidebar-link-icon">📊</span> 대시보드
+    </button>
+    <button class="sidebar-link" onclick="showSection('curriculum')">
+      <span class="sidebar-link-icon">🎬</span> 커리큘럼
+    </button>
+    <button class="sidebar-link" onclick="showSection('assignment')">
+      <span class="sidebar-link-icon">📝</span> 과제 제출
+      <span class="sidebar-link-badge">2</span>
+    </button>
+    <div class="nav-section-label">기타</div>
+    <button class="sidebar-link" onclick="showSection('notice')">
+      <span class="sidebar-link-icon">🔔</span> 공지사항
+    </button>
+    <button class="sidebar-link" onclick="showSection('files')">
+      <span class="sidebar-link-icon">📁</span> 자료실
+    </button>
+  </nav>
+  <div class="sidebar-bottom">
+    <button class="sidebar-logout" onclick="if(confirm('로그아웃 하시겠습니까?')) location.href='lecture-index.html'">로그아웃</button>
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<main class="main">
+  <div class="topbar">
+    <span class="topbar-title" id="topbarTitle">대시보드</span>
+    <div class="topbar-right">
+      <div class="topbar-notif">🔔<div class="notif-dot"></div></div>
+      <div style="font-size:12px;color:var(--gray)">홍길동 님</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ══ 대시보드 섹션 ══ -->
+    <div id="section-dashboard">
+      <!-- 개요 카드 -->
+      <div class="overview-grid">
+        <div class="ov-card">
+          <div class="ov-label">전체 진행률</div>
+          <div class="ov-value">40%</div>
+          <div class="ov-sub">5강 중 2강 완료</div>
+        </div>
+        <div class="ov-card green">
+          <div class="ov-label">완료 강의</div>
+          <div class="ov-value">2</div>
+          <div class="ov-sub">강의 수강 완료</div>
+        </div>
+        <div class="ov-card yellow">
+          <div class="ov-label">미제출 과제</div>
+          <div class="ov-value">2</div>
+          <div class="ov-sub">제출 대기 중</div>
+        </div>
+        <div class="ov-card">
+          <div class="ov-label">프로그램 기간</div>
+          <div class="ov-value">D-23</div>
+          <div class="ov-sub">2025.04.30 종료</div>
+        </div>
+      </div>
+
+      <!-- 전체 진행률 바 -->
+      <div class="progress-bar-wrap">
+        <div class="prog-header">
+          <span class="prog-title">프로그램 전체 진행률</span>
+          <span class="prog-pct">40%</span>
+        </div>
+        <div class="prog-bar"><div class="prog-bar-fill" style="width:40%"></div></div>
+        <div class="prog-steps">
+          <div class="prog-step done">1강 완료</div>
+          <div class="prog-step done">2강 완료</div>
+          <div class="prog-step current">3강 수강중</div>
+          <div class="prog-step">4강</div>
+          <div class="prog-step">5강</div>
+        </div>
+      </div>
+
+      <!-- 2단 레이아웃 -->
+      <div class="two-col">
+        <!-- 왼쪽: 커리큘럼 목록 -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">커리큘럼</span>
+            <span class="card-badge badge-blue">5강</span>
+          </div>
+          <div class="curriculum-item done" onclick="openPlayer(1)">
+            <div class="ci-num done">✓</div>
+            <div class="ci-body">
+              <div class="ci-title">1강. 저성과자 개념 및 법적 기준 이해</div>
+              <div class="ci-meta">32분 · 과제 제출 완료</div>
+            </div>
+            <div class="ci-status"><span class="status-pill sp-done">완료</span></div>
+          </div>
+          <div class="curriculum-item done" onclick="openPlayer(2)">
+            <div class="ci-num done">✓</div>
+            <div class="ci-body">
+              <div class="ci-title">2강. 성과향상계획(PIP) 작성 방법</div>
+              <div class="ci-meta">41분 · 과제 제출 완료</div>
+            </div>
+            <div class="ci-status"><span class="status-pill sp-done">완료</span></div>
+          </div>
+          <div class="curriculum-item current" onclick="openPlayer(3)">
+            <div class="ci-num current">3</div>
+            <div class="ci-body">
+              <div class="ci-title">3강. 자기 개발 목표 설정 실습</div>
+              <div class="ci-meta">38분 · 과제 미제출 ⚠️</div>
+            </div>
+            <div class="ci-status"><span class="status-pill sp-current">수강중</span></div>
+          </div>
+          <div class="curriculum-item locked">
+            <div class="ci-num locked">🔒</div>
+            <div class="ci-body">
+              <div class="ci-title">4강. 직무 역량 강화 전략</div>
+              <div class="ci-meta">3강 완료 후 열림</div>
+            </div>
+            <div class="ci-status"><span class="status-pill sp-locked">잠금</span></div>
+          </div>
+          <div class="curriculum-item locked">
+            <div class="ci-num locked">🔒</div>
+            <div class="ci-body">
+              <div class="ci-title">5강. 최종 평가 및 피드백</div>
+              <div class="ci-meta">4강 완료 후 열림</div>
+            </div>
+            <div class="ci-status"><span class="status-pill sp-locked">잠금</span></div>
+          </div>
+        </div>
+
+        <!-- 오른쪽: 현재 강의 + 과제 -->
+        <div>
+          <div class="current-lecture">
+            <div class="lecture-thumb">
+              <div class="lecture-thumb-bg"></div>
+              <span class="lecture-num-badge">3강 수강중</span>
+              <div class="lecture-play-btn" onclick="openPlayer(3)">▶</div>
+            </div>
+            <div class="lecture-body">
+              <div class="lecture-cat">자기 개발</div>
+              <div class="lecture-title">자기 개발 목표 설정 실습</div>
+              <div class="lecture-desc">단기·중기·장기 목표를 구체적으로 설정하고 실행 계획을 수립하는 방법을 배웁니다.</div>
+              <div class="lecture-meta">
+                <span>⏱ 38분</span>
+                <span>👤 이상호 공인노무사</span>
+              </div>
+              <button class="btn-watch" onclick="openPlayer(3)">▶ 강의 수강하기</button>
+            </div>
+          </div>
+
+          <!-- 과제 제출 박스 -->
+          <div class="assignment-card" style="margin-top:16px">
+            <div class="card-header">
+              <span class="card-title">📝 과제 제출</span>
+              <span class="card-badge badge-blue">미제출 2건</span>
+            </div>
+            <div class="assignment-item">
+              <div class="ai-header">
+                <div>
+                  <div class="ai-title">3강 과제 — 자기 개발 목표 설정서 작성</div>
+                  <div class="ai-lecture">3강 수강 완료 후 제출</div>
+                </div>
+                <div class="ai-deadline">D-5</div>
+              </div>
+              <div class="ai-actions">
+                <button class="btn-upload" onclick="openUpload(3)">📎 파일 제출</button>
+              </div>
+            </div>
+            <div class="assignment-item">
+              <div class="ai-header">
+                <div>
+                  <div class="ai-title">2강 과제 — PIP 초안 작성 (수정 요청)</div>
+                  <div class="ai-lecture">2강 · 재제출 요청됨</div>
+                </div>
+                <div class="ai-deadline" style="color:var(--red)">재제출</div>
+              </div>
+              <div class="feedback-box">
+                <div class="feedback-label">📌 강사 피드백</div>
+                목표 수치를 더 구체적으로 작성해주세요. 예: "업무 처리 속도 향상" → "주간 처리 건수 10건 → 15건으로 향상"
+              </div>
+              <div class="ai-actions" style="margin-top:10px">
+                <div class="file-info">📄 PIP_초안_홍길동.docx</div>
+                <button class="btn-resubmit" onclick="openUpload(2)">재제출</button>
+              </div>
+            </div>
+            <div class="assignment-item">
+              <div class="ai-header">
+                <div>
+                  <div class="ai-title">1강 과제 — 자기 평가서 작성</div>
+                  <div class="ai-lecture">1강 · 제출 완료</div>
+                </div>
+                <span class="status-pill sp-done" style="flex-shrink:0">승인</span>
+              </div>
+              <div class="ai-actions">
+                <div class="file-info">📄 자기평가서_홍길동.docx</div>
+              </div>
+              <div class="feedback-box" style="background:#f0fdf4;border-left-color:var(--green)">
+                <div class="feedback-label" style="color:var(--green)">✅ 강사 피드백</div>
+                자기 평가가 구체적이고 솔직하게 작성되었습니다. 다음 과제도 이 방향으로 작성해주세요.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ 커리큘럼 섹션 ══ -->
+    <div id="section-curriculum" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">전체 커리큘럼</span>
+          <span class="card-badge badge-blue">5강 · 총 189분</span>
+        </div>
+        <div class="curriculum-item done" onclick="openPlayer(1)">
+          <div class="ci-num done">✓</div>
+          <div class="ci-body"><div class="ci-title">1강. 저성과자 개념 및 법적 기준 이해</div><div class="ci-meta">32분 · 이상호 공인노무사</div></div>
+          <div class="ci-status"><span class="status-pill sp-done">완료</span></div>
+        </div>
+        <div class="curriculum-item done" onclick="openPlayer(2)">
+          <div class="ci-num done">✓</div>
+          <div class="ci-body"><div class="ci-title">2강. 성과향상계획(PIP) 작성 방법</div><div class="ci-meta">41분 · 이상호 공인노무사</div></div>
+          <div class="ci-status"><span class="status-pill sp-done">완료</span></div>
+        </div>
+        <div class="curriculum-item current" onclick="openPlayer(3)">
+          <div class="ci-num current">3</div>
+          <div class="ci-body"><div class="ci-title">3강. 자기 개발 목표 설정 실습</div><div class="ci-meta">38분 · 이상호 공인노무사 · 과제 미제출</div></div>
+          <div class="ci-status"><span class="status-pill sp-current">수강중</span></div>
+        </div>
+        <div class="curriculum-item locked">
+          <div class="ci-num locked">🔒</div>
+          <div class="ci-body"><div class="ci-title">4강. 직무 역량 강화 전략</div><div class="ci-meta">44분 · 채형석 공인노무사</div></div>
+          <div class="ci-status"><span class="status-pill sp-locked">잠금</span></div>
+        </div>
+        <div class="curriculum-item locked">
+          <div class="ci-num locked">🔒</div>
+          <div class="ci-body"><div class="ci-title">5강. 최종 평가 및 피드백</div><div class="ci-meta">34분 · 이상호·채형석 공인노무사</div></div>
+          <div class="ci-status"><span class="status-pill sp-locked">잠금</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ 과제 섹션 ══ -->
+    <div id="section-assignment" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">과제 현황</span>
+          <span class="card-badge badge-blue">미제출 2건</span>
+        </div>
+        <div class="assignment-item">
+          <div class="ai-header">
+            <div><div class="ai-title">3강 과제 — 자기 개발 목표 설정서 작성</div><div class="ai-lecture">3강 · 마감 2025.04.07</div></div>
+            <div class="ai-deadline">D-5</div>
+          </div>
+          <div class="ai-actions"><button class="btn-upload" onclick="openUpload(3)">📎 파일 제출</button></div>
+        </div>
+        <div class="assignment-item">
+          <div class="ai-header">
+            <div><div class="ai-title">2강 과제 — PIP 초안 작성 (수정 요청)</div><div class="ai-lecture">2강 · 재제출 요청됨</div></div>
+            <div class="ai-deadline" style="color:var(--red)">재제출</div>
+          </div>
+          <div class="feedback-box">
+            <div class="feedback-label">📌 강사 피드백</div>
+            목표 수치를 더 구체적으로 작성해주세요. 예: "업무 처리 속도 향상" → "주간 처리 건수 10건 → 15건으로 향상"
+          </div>
+          <div class="ai-actions" style="margin-top:10px">
+            <div class="file-info">📄 PIP_초안_홍길동.docx</div>
+            <button class="btn-resubmit" onclick="openUpload(2)">재제출</button>
+          </div>
+        </div>
+        <div class="assignment-item">
+          <div class="ai-header">
+            <div><div class="ai-title">1강 과제 — 자기 평가서 작성</div><div class="ai-lecture">1강 · 2025.03.20 제출</div></div>
+            <span class="status-pill sp-done" style="flex-shrink:0">승인</span>
+          </div>
+          <div class="ai-actions"><div class="file-info">📄 자기평가서_홍길동.docx</div></div>
+          <div class="feedback-box" style="background:#f0fdf4;border-left-color:var(--green)">
+            <div class="feedback-label" style="color:var(--green)">✅ 강사 피드백</div>
+            자기 평가가 구체적이고 솔직하게 작성되었습니다. 다음 과제도 이 방향으로 작성해주세요.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ 공지사항 섹션 ══ -->
+    <div id="section-notice" style="display:none">
+      <div class="card">
+        <div class="card-header"><span class="card-title">공지사항</span></div>
+        <div class="assignment-item">
+          <div class="ai-title">3강 과제 마감 안내 (2025.04.07)</div>
+          <div class="ai-lecture" style="margin-top:4px">3강 과제 마감이 5일 남았습니다. 기한 내 제출 부탁드립니다.</div>
+          <div class="ai-lecture">2025.04.02</div>
+        </div>
+        <div class="assignment-item">
+          <div class="ai-title">프로그램 안내 — 수강 방법 및 유의사항</div>
+          <div class="ai-lecture" style="margin-top:4px">강의는 순서대로 수강하셔야 하며, 각 강의 수강 후 과제를 제출하셔야 다음 강의가 열립니다.</div>
+          <div class="ai-lecture">2025.03.15</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ 자료실 섹션 ══ -->
+    <div id="section-files" style="display:none">
+      <div class="card">
+        <div class="card-header"><span class="card-title">자료실</span><span class="card-badge badge-blue">3개 파일</span></div>
+        <div class="assignment-item">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:24px">📄</span>
+            <div>
+              <div class="ai-title">PIP 작성 가이드라인.pdf</div>
+              <div class="ai-lecture">노무법인 C&amp;L 제공 · 2025.03.15</div>
+            </div>
+            <button class="btn-resubmit" style="margin-left:auto">다운로드</button>
+          </div>
+        </div>
+        <div class="assignment-item">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:24px">📄</span>
+            <div>
+              <div class="ai-title">자기 개발 목표 설정 양식.docx</div>
+              <div class="ai-lecture">노무법인 C&amp;L 제공 · 2025.03.15</div>
+            </div>
+            <button class="btn-resubmit" style="margin-left:auto">다운로드</button>
+          </div>
+        </div>
+        <div class="assignment-item">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:24px">📄</span>
+            <div>
+              <div class="ai-title">성과향상계획(PIP) 양식.docx</div>
+              <div class="ai-lecture">노무법인 C&amp;L 제공 · 2025.03.15</div>
+            </div>
+            <button class="btn-resubmit" style="margin-left:auto">다운로드</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</main>
+
+<!-- ── 동영상 플레이어 모달 ── -->
+<div class="overlay" id="playerModal">
+  <div style="width:100%;max-width:860px;position:relative">
+    <button class="player-close" onclick="closeModal('playerModal')">✕</button>
+    <div class="player-wrap">
+      <!-- Vimeo Pro 임베드 자리: 실제 운영 시 아래 src를 Vimeo 영상 ID로 교체 -->
+      <iframe id="vimeoPlayer"
+        src="about:blank"
+        allow="autoplay; fullscreen; picture-in-picture"
+        allowfullscreen>
+      </iframe>
+    </div>
+    <div class="player-info">
+      <div class="player-title" id="playerTitle">강의 제목</div>
+      <div class="player-meta" id="playerMeta">이상호 공인노무사</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 과제 업로드 모달 ── -->
+<div class="overlay" id="uploadModal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('uploadModal')">×</button>
+    <h2 class="modal-title" id="uploadTitle">과제 제출</h2>
+    <p class="modal-sub" id="uploadSub">파일을 선택하거나 드래그하여 업로드하세요</p>
+    <div class="ok-msg" id="uploadOk">✅ 과제가 성공적으로 제출되었습니다.</div>
+    <div class="upload-zone" onclick="document.getElementById('fileInput').click()" id="uploadZone">
+      <div class="upload-zone-icon">📎</div>
+      <div class="upload-zone-text"><strong>클릭</strong>하거나 파일을 드래그하세요</div>
+      <div class="upload-zone-hint" id="uploadFileName">PDF, Word, HWP, Excel · 최대 50MB</div>
+    </div>
+    <input type="file" id="fileInput" style="display:none" accept=".pdf,.doc,.docx,.hwp,.xls,.xlsx" onchange="handleFileSelect(this)"/>
+    <div class="mf">
+      <label>메모 (선택)</label>
+      <textarea id="uploadMemo" placeholder="강사에게 전달할 내용이 있으면 입력해주세요"></textarea>
+    </div>
+    <button class="btn-full" id="uploadSubmitBtn" onclick="submitAssignment()">제출하기</button>
+  </div>
+</div>
+
+<script>
+  const lectures = {
+    1: { title:'1강. 저성과자 개념 및 법적 기준 이해', meta:'32분 · 이상호 공인노무사', vimeoId:'824804225' },
+    2: { title:'2강. 성과향상계획(PIP) 작성 방법',    meta:'41분 · 이상호 공인노무사', vimeoId:'824804225' },
+    3: { title:'3강. 자기 개발 목표 설정 실습',       meta:'38분 · 이상호 공인노무사', vimeoId:'824804225' },
+  };
+  let currentUploadLecture = null;
+  let selectedFile = null;
+
+  // ── 섹션 전환
+  const sectionTitles = { dashboard:'대시보드', curriculum:'커리큘럼', assignment:'과제 제출', notice:'공지사항', files:'자료실' };
+  function showSection(id) {
+    document.querySelectorAll('[id^="section-"]').forEach(s => s.style.display='none');
+    document.getElementById('section-' + id).style.display = '';
+    document.getElementById('topbarTitle').textContent = sectionTitles[id];
+    document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+  }
+
+  // ── 동영상 플레이어
+  function openPlayer(num) {
+    const lec = lectures[num];
+    if (!lec) return;
+    document.getElementById('playerTitle').textContent = lec.title;
+    document.getElementById('playerMeta').textContent = lec.meta;
+    // Vimeo 임베드 (실제 운영 시 vimeoId를 실제 영상 ID로 교체)
+    document.getElementById('vimeoPlayer').src =
+      `https://player.vimeo.com/video/${lec.vimeoId}?autoplay=1&title=0&byline=0&portrait=0`;
+    openModal('playerModal');
+  }
+
+  // ── 과제 업로드
+  function openUpload(num) {
+    currentUploadLecture = num;
+    selectedFile = null;
+    document.getElementById('fileInput').value = '';
+    document.getElementById('uploadFileName').textContent = 'PDF, Word, HWP, Excel · 최대 50MB';
+    document.getElementById('uploadZone').style.background = '';
+    document.getElementById('uploadMemo').value = '';
+    document.getElementById('uploadOk').style.display = 'none';
+    document.getElementById('uploadTitle').textContent = num + '강 과제 제출';
+    document.getElementById('uploadSub').textContent = num + '강 과제 파일을 선택해주세요';
+    openModal('uploadModal');
+  }
+
+  function handleFileSelect(input) {
+    if (!input.files[0]) return;
+    selectedFile = input.files[0];
+    const sizeMB = (selectedFile.size / 1024 / 1024).toFixed(1);
+    document.getElementById('uploadFileName').textContent = `✅ ${selectedFile.name} (${sizeMB}MB)`;
+    document.getElementById('uploadZone').style.background = '#f0f5ff';
+  }
+
+  function submitAssignment() {
+    if (!selectedFile) { alert('파일을 선택해주세요.'); return; }
+    const btn = document.getElementById('uploadSubmitBtn');
+    btn.textContent = '제출 중...'; btn.disabled = true;
+    // TODO: 실제 파일 업로드 로직 (Firebase Storage 또는 GitHub API 연동)
+    setTimeout(() => {
+      document.getElementById('uploadOk').style.display = 'block';
+      btn.textContent = '제출하기'; btn.disabled = false;
+      setTimeout(() => closeModal('uploadModal'), 1800);
+    }, 1000);
+  }
+
+  // ── 모달
+  function openModal(id)  { document.getElementById(id).classList.add('open'); document.body.style.overflow='hidden'; }
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+    document.body.style.overflow = '';
+    if (id === 'playerModal') document.getElementById('vimeoPlayer').src = 'about:blank';
+  }
+  document.querySelectorAll('.overlay').forEach(el => {
+    el.addEventListener('click', e => { if(e.target===el) { el.classList.remove('open'); document.body.style.overflow=''; if(el.id==='playerModal') document.getElementById('vimeoPlayer').src='about:blank'; }});
+  });
+
+  // ── 드래그앤드롭
+  const zone = document.getElementById('uploadZone');
+  if (zone) {
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor='var(--navy)'; zone.style.background='#f0f5ff'; });
+    zone.addEventListener('dragleave', () => { zone.style.borderColor=''; if(!selectedFile) zone.style.background=''; });
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (file) { selectedFile = file; const sizeMB=(file.size/1024/1024).toFixed(1); document.getElementById('uploadFileName').textContent=`✅ ${file.name} (${sizeMB}MB)`; }
+    });
+  }
+</script>
+</body>
+</html>

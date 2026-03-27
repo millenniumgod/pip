@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>관리자 | CNL PIP Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;0,600;1,300;1,500&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root {
+      --navy:   #1a3f7a;
+      --navy2:  #1e4fa0;
+      --dark:   #0d1b2a;
+      --cream:  #f5f0e8;
+      --light:  #fafaf7;
+      --gray:   #6b7280;
+      --white:  #ffffff;
+      --green:  #16a34a;
+      --yellow: #ca8a04;
+      --red:    #dc2626;
+      --ff-serif: 'Cormorant Garamond',serif;
+      --ff-sans:  'Noto Sans KR',sans-serif;
+    }
+    html { scroll-behavior:smooth; }
+    body { font-family:var(--ff-sans); font-size:14px; line-height:1.75; color:var(--dark); background:#f3f6fb; overflow-x:hidden; }
+
+    /* ── SIDEBAR ── */
+    .sidebar { position:fixed; top:0; left:0; width:240px; height:100vh; background:var(--dark); z-index:200; display:flex; flex-direction:column; overflow-y:auto; }
+    .sidebar-logo { padding:24px 20px 20px; border-bottom:1px solid rgba(255,255,255,.07); }
+    .sidebar-logo-badge { background:#c0392b; color:#fff; font-family:var(--ff-serif); font-size:11px; font-weight:600; letter-spacing:.1em; padding:3px 8px; display:inline-block; margin-bottom:6px; }
+    .sidebar-logo-title { font-family:var(--ff-serif); font-size:16px; font-weight:600; color:#fff; }
+    .sidebar-logo-sub { font-size:10px; color:rgba(255,255,255,.35); letter-spacing:.08em; margin-top:2px; }
+    .sidebar-user { padding:14px 20px; border-bottom:1px solid rgba(255,255,255,.07); display:flex; align-items:center; gap:10px; }
+    .sidebar-avatar { width:34px; height:34px; border-radius:50%; background:#c0392b; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:#fff; flex-shrink:0; }
+    .sidebar-user-name { font-size:13px; font-weight:600; color:#fff; }
+    .sidebar-user-role { font-size:10px; color:rgba(255,255,255,.4); letter-spacing:.06em; }
+    .sidebar-nav { padding:12px 0; flex:1; }
+    .nav-section-label { font-size:9px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.25); padding:12px 20px 6px; }
+    .sidebar-link { display:flex; align-items:center; gap:10px; padding:10px 20px; font-size:13px; color:rgba(255,255,255,.5); text-decoration:none; transition:all .15s; cursor:pointer; border:none; background:none; width:100%; font-family:var(--ff-sans); }
+    .sidebar-link:hover { background:rgba(255,255,255,.06); color:rgba(255,255,255,.85); }
+    .sidebar-link.active { background:rgba(192,57,43,.2); color:#fff; border-left:3px solid #e74c3c; }
+    .sidebar-link-icon { font-size:15px; flex-shrink:0; }
+    .sidebar-link-badge { margin-left:auto; background:var(--red); color:#fff; font-size:9px; font-weight:700; padding:2px 6px; border-radius:10px; }
+    .sidebar-bottom { padding:16px 20px; border-top:1px solid rgba(255,255,255,.07); }
+    .sidebar-logout { font-size:12px; color:rgba(255,255,255,.3); cursor:pointer; background:none; border:none; font-family:var(--ff-sans); transition:color .2s; }
+    .sidebar-logout:hover { color:rgba(255,255,255,.6); }
+
+    /* ── MAIN ── */
+    .main { margin-left:240px; min-height:100vh; }
+    .topbar { background:#fff; border-bottom:1px solid rgba(26,63,122,.08); padding:0 32px; height:60px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+    .topbar-title { font-family:var(--ff-serif); font-size:18px; font-weight:500; color:var(--navy); }
+    .topbar-actions { display:flex; gap:10px; align-items:center; }
+    .content { padding:28px 32px; }
+
+    /* ── 개요 카드 ── */
+    .overview-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:24px; }
+    .ov-card { background:#fff; padding:18px 20px; border-top:3px solid var(--navy); }
+    .ov-label { font-size:10px; font-weight:600; letter-spacing:.08em; color:var(--gray); text-transform:uppercase; margin-bottom:8px; }
+    .ov-value { font-family:var(--ff-serif); font-size:1.9rem; font-weight:600; color:var(--navy); line-height:1; margin-bottom:4px; }
+    .ov-sub { font-size:11px; color:var(--gray); }
+    .ov-card.green { border-top-color:var(--green); } .ov-card.green .ov-value { color:var(--green); }
+    .ov-card.yellow { border-top-color:var(--yellow); } .ov-card.yellow .ov-value { color:var(--yellow); }
+    .ov-card.red { border-top-color:var(--red); } .ov-card.red .ov-value { color:var(--red); }
+
+    /* ── CARD 공통 ── */
+    .card { background:#fff; overflow:hidden; margin-bottom:20px; }
+    .card-header { padding:18px 24px 14px; border-bottom:1px solid rgba(26,63,122,.06); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+    .card-title { font-weight:700; font-size:14px; color:var(--navy); }
+    .card-badge { font-size:10px; font-weight:700; letter-spacing:.06em; padding:3px 10px; }
+    .badge-blue { background:rgba(26,63,122,.08); color:var(--navy); }
+    .badge-green { background:rgba(22,163,74,.1); color:var(--green); }
+    .badge-yellow { background:rgba(202,138,4,.1); color:var(--yellow); }
+    .badge-red { background:rgba(220,38,38,.1); color:var(--red); }
+
+    /* ── 테이블 ── */
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; }
+    thead tr { background:#f8faff; }
+    thead th { padding:10px 16px; font-size:11px; font-weight:700; letter-spacing:.06em; color:var(--gray); text-align:left; border-bottom:1px solid rgba(26,63,122,.08); white-space:nowrap; }
+    tbody tr { border-bottom:1px solid rgba(26,63,122,.05); transition:background .15s; }
+    tbody tr:hover { background:#fafbff; }
+    tbody tr:last-child { border-bottom:none; }
+    tbody td { padding:12px 16px; font-size:13px; color:#374151; vertical-align:middle; }
+    .td-name { font-weight:700; color:var(--dark); }
+    .prog-mini { height:5px; background:#e9eef6; border-radius:3px; overflow:hidden; width:70px; display:inline-block; vertical-align:middle; margin-right:6px; }
+    .prog-mini-fill { height:100%; border-radius:3px; }
+    .c-blue { background:var(--navy2); }
+    .c-green { background:var(--green); }
+    .c-yellow { background:var(--yellow); }
+    .status-pill { font-size:10px; font-weight:700; letter-spacing:.04em; padding:3px 10px; border-radius:20px; white-space:nowrap; }
+    .sp-done     { background:rgba(22,163,74,.1);   color:var(--green); }
+    .sp-progress { background:rgba(26,63,122,.08);  color:var(--navy2); }
+    .sp-pending  { background:rgba(202,138,4,.1);   color:var(--yellow); }
+    .sp-late     { background:rgba(220,38,38,.1);   color:var(--red); }
+    .btn-sm { font-size:11px; font-weight:700; padding:5px 12px; border:none; cursor:pointer; font-family:var(--ff-sans); letter-spacing:.04em; transition:all .2s; }
+    .btn-sm-outline { background:transparent; color:var(--navy); border:1.5px solid rgba(26,63,122,.2); }
+    .btn-sm-outline:hover { border-color:var(--navy); background:rgba(26,63,122,.04); }
+    .btn-sm-primary { background:var(--navy); color:#fff; }
+    .btn-sm-primary:hover { background:var(--navy2); }
+    .btn-sm-red { background:var(--red); color:#fff; }
+    .btn-sm-red:hover { background:#b91c1c; }
+
+    /* ── 2단 레이아웃 ── */
+    .two-col { display:grid; grid-template-columns:1fr 360px; gap:20px; }
+
+    /* ── 커리큘럼 관리 ── */
+    .curriculum-manage-item { padding:16px 24px; border-bottom:1px solid rgba(26,63,122,.05); display:flex; align-items:center; gap:14px; }
+    .curriculum-manage-item:last-child { border-bottom:none; }
+    .cm-num { width:32px; height:32px; background:var(--navy); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; flex-shrink:0; }
+    .cm-body { flex:1; }
+    .cm-title { font-size:13px; font-weight:600; color:var(--dark); margin-bottom:2px; }
+    .cm-meta { font-size:11px; color:var(--gray); }
+    .cm-actions { display:flex; gap:6px; }
+
+    /* ── 과제 검토 ── */
+    .review-item { padding:18px 24px; border-bottom:1px solid rgba(26,63,122,.05); }
+    .review-item:last-child { border-bottom:none; }
+    .review-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px; gap:12px; }
+    .review-title { font-size:13px; font-weight:600; color:var(--dark); line-height:1.4; }
+    .review-meta { font-size:11px; color:var(--gray); margin-top:2px; }
+    .review-file { display:flex; align-items:center; gap:8px; background:#f9fafb; border:1px solid #e5e7eb; padding:8px 12px; font-size:12px; color:var(--gray); margin-bottom:10px; }
+    .review-actions { display:flex; gap:8px; }
+    .feedback-input { width:100%; background:#f9f9f6; border:1px solid rgba(13,27,42,.12); padding:8px 12px; font-family:var(--ff-sans); font-size:12px; color:var(--dark); outline:none; resize:none; transition:border-color .2s; margin-bottom:8px; min-height:60px; }
+    .feedback-input:focus { border-color:var(--navy); }
+
+    /* ── MODAL ── */
+    .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:9999; align-items:center; justify-content:center; padding:20px; }
+    .overlay.open { display:flex; }
+    .modal-box { background:#fff; width:100%; max-width:560px; padding:40px; position:relative; max-height:90vh; overflow-y:auto; }
+    .modal-close { position:absolute; top:14px; right:18px; background:none; border:none; font-size:22px; cursor:pointer; color:#9ca3af; }
+    .modal-title { font-family:var(--ff-serif); font-size:22px; font-weight:500; color:var(--navy); margin-bottom:6px; }
+    .modal-sub { font-size:13px; color:var(--gray); margin-bottom:22px; line-height:1.7; }
+    .mf { margin-bottom:14px; }
+    .mf label { display:block; font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--gray); margin-bottom:5px; }
+    .mf input, .mf select, .mf textarea { width:100%; background:#f9f9f6; border:1px solid rgba(13,27,42,.12); padding:10px 13px; font-family:var(--ff-sans); font-size:13px; color:var(--dark); outline:none; transition:border-color .2s; resize:vertical; }
+    .mf input:focus, .mf select:focus, .mf textarea:focus { border-color:var(--navy); }
+    .mf-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .btn-full { width:100%; padding:13px; background:var(--navy); color:#fff; border:none; font-family:var(--ff-sans); font-size:13px; font-weight:700; letter-spacing:.06em; cursor:pointer; transition:background .2s; margin-top:4px; }
+    .btn-full:hover { background:var(--navy2); }
+    .ok-msg { display:none; background:#f0fdf4; border:1px solid rgba(22,163,74,.2); color:var(--green); font-size:13px; padding:10px 12px; margin-bottom:14px; }
+    .err-msg { display:none; background:#fdf0ee; color:var(--red); font-size:13px; padding:10px 12px; margin-bottom:14px; }
+    .step-list { display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+    .step-row { display:flex; gap:8px; align-items:center; }
+    .step-row input { flex:1; }
+    .btn-add-step { font-size:12px; color:var(--navy2); background:none; border:none; cursor:pointer; font-family:var(--ff-sans); font-weight:600; padding:4px 0; }
+    .divider { height:1px; background:rgba(13,27,42,.08); margin:18px 0; }
+
+    /* ── 반응형 ── */
+    @media(max-width:1200px) { .overview-grid{grid-template-columns:repeat(3,1fr)} .two-col{grid-template-columns:1fr} }
+    @media(max-width:768px) {
+      .sidebar{transform:translateX(-100%);transition:transform .3s}
+      .sidebar.open{transform:translateX(0)}
+      .main{margin-left:0}
+      .topbar,.content{padding-left:20px;padding-right:20px}
+      .overview-grid{grid-template-columns:1fr 1fr}
+    }
+    @media(max-width:480px) { .overview-grid{grid-template-columns:1fr} }
+  </style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-badge">ADMIN</div>
+    <div class="sidebar-logo-title">PIP Platform</div>
+    <div class="sidebar-logo-sub">노무법인 C&amp;L 관리자</div>
+  </div>
+  <div class="sidebar-user">
+    <div class="sidebar-avatar">관</div>
+    <div>
+      <div class="sidebar-user-name">노무법인 C&amp;L</div>
+      <div class="sidebar-user-role">ADMINISTRATOR</div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">메인</div>
+    <button class="sidebar-link active" onclick="showSection(this,'dashboard')">
+      <span class="sidebar-link-icon">📊</span> 전체 현황
+    </button>
+    <button class="sidebar-link" onclick="showSection(this,'projects')">
+      <span class="sidebar-link-icon">🏢</span> 기업 프로젝트
+    </button>
+    <button class="sidebar-link" onclick="showSection(this,'curriculum')">
+      <span class="sidebar-link-icon">🎬</span> 커리큘럼 관리
+    </button>
+    <button class="sidebar-link" onclick="showSection(this,'review')">
+      <span class="sidebar-link-icon">📝</span> 과제 검토
+      <span class="sidebar-link-badge">5</span>
+    </button>
+    <div class="nav-section-label">관리</div>
+    <button class="sidebar-link" onclick="showSection(this,'accounts')">
+      <span class="sidebar-link-icon">👤</span> 계정 관리
+    </button>
+    <button class="sidebar-link" onclick="showSection(this,'notice')">
+      <span class="sidebar-link-icon">📢</span> 공지사항 관리
+    </button>
+  </nav>
+  <div class="sidebar-bottom">
+    <button class="sidebar-logout" onclick="if(confirm('로그아웃 하시겠습니까?')) location.href='lecture-index.html'">로그아웃</button>
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<main class="main">
+  <div class="topbar">
+    <span class="topbar-title" id="topbarTitle">전체 현황</span>
+    <div class="topbar-actions">
+      <button class="btn-sm btn-sm-primary" onclick="openModal('newProjectModal')">+ 새 프로젝트 생성</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ══ 전체 현황 ══ -->
+    <div id="section-dashboard">
+      <div class="overview-grid">
+        <div class="ov-card">
+          <div class="ov-label">전체 기업</div>
+          <div class="ov-value">4</div>
+          <div class="ov-sub">계약 기업 수</div>
+        </div>
+        <div class="ov-card">
+          <div class="ov-label">전체 참여자</div>
+          <div class="ov-value">11</div>
+          <div class="ov-sub">등록된 참여자 수</div>
+        </div>
+        <div class="ov-card green">
+          <div class="ov-label">완료</div>
+          <div class="ov-value">3</div>
+          <div class="ov-sub">프로그램 이수</div>
+        </div>
+        <div class="ov-card yellow">
+          <div class="ov-label">과제 검토 대기</div>
+          <div class="ov-value">5</div>
+          <div class="ov-sub">검토 필요</div>
+        </div>
+        <div class="ov-card red">
+          <div class="ov-label">마감 임박</div>
+          <div class="ov-value">3</div>
+          <div class="ov-sub">7일 이내 마감</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <!-- 기업 프로젝트 현황 -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">기업 프로젝트 현황</span>
+            <button class="btn-sm btn-sm-outline" onclick="showSection(document.querySelectorAll('.sidebar-link')[1],'projects')">전체 보기</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>기업명</th><th>참여자</th><th>평균 진행률</th><th>상태</th><th>관리</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td class="td-name">(주)삼성전자</td>
+                  <td>3명</td>
+                  <td><div class="prog-mini"><div class="prog-mini-fill c-blue" style="width:72%"></div></div>72%</td>
+                  <td><span class="status-pill sp-progress">진행중</span></td>
+                  <td><button class="btn-sm btn-sm-outline" onclick="openProjectDetail('(주)삼성전자')">상세</button></td>
+                </tr>
+                <tr>
+                  <td class="td-name">(주)LG화학</td>
+                  <td>1명</td>
+                  <td><div class="prog-mini"><div class="prog-mini-fill c-green" style="width:100%"></div></div>100%</td>
+                  <td><span class="status-pill sp-done">완료</span></td>
+                  <td><button class="btn-sm btn-sm-outline" onclick="openProjectDetail('(주)LG화학')">상세</button></td>
+                </tr>
+                <tr>
+                  <td class="td-name">(주)현대모비스</td>
+                  <td>2명</td>
+                  <td><div class="prog-mini"><div class="prog-mini-fill c-yellow" style="width:45%"></div></div>45%</td>
+                  <td><span class="status-pill sp-pending">과제 대기</span></td>
+                  <td><button class="btn-sm btn-sm-outline" onclick="openProjectDetail('(주)현대모비스')">상세</button></td>
+                </tr>
+                <tr>
+                  <td class="td-name">OO기업(주)</td>
+                  <td>5명</td>
+                  <td><div class="prog-mini"><div class="prog-mini-fill c-blue" style="width:28%"></div></div>28%</td>
+                  <td><span class="status-pill sp-progress">진행중</span></td>
+                  <td><button class="btn-sm btn-sm-outline" onclick="openProjectDetail('OO기업(주)')">상세</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 과제 검토 대기 -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">과제 검토 대기</span>
+            <span class="card-badge badge-yellow">5건</span>
+          </div>
+          <div style="padding:0">
+            <div style="padding:14px 20px;border-bottom:1px solid rgba(26,63,122,.05)">
+              <div style="font-size:13px;font-weight:600;color:var(--dark);margin-bottom:2px">홍길동 — 3강 과제</div>
+              <div style="font-size:11px;color:var(--gray)">OO기업(주) · 2025.04.01 제출</div>
+              <div style="display:flex;gap:6px;margin-top:8px">
+                <button class="btn-sm btn-sm-outline">파일 보기</button>
+                <button class="btn-sm btn-sm-primary" onclick="openReviewModal('홍길동','3강 과제')">검토하기</button>
+              </div>
+            </div>
+            <div style="padding:14px 20px;border-bottom:1px solid rgba(26,63,122,.05)">
+              <div style="font-size:13px;font-weight:600;color:var(--dark);margin-bottom:2px">김철수 — 2강 과제</div>
+              <div style="font-size:11px;color:var(--gray)">OO기업(주) · 2025.03.30 제출</div>
+              <div style="display:flex;gap:6px;margin-top:8px">
+                <button class="btn-sm btn-sm-outline">파일 보기</button>
+                <button class="btn-sm btn-sm-primary" onclick="openReviewModal('김철수','2강 과제')">검토하기</button>
+              </div>
+            </div>
+            <div style="padding:14px 20px;border-bottom:1px solid rgba(26,63,122,.05)">
+              <div style="font-size:13px;font-weight:600;color:var(--dark);margin-bottom:2px">박영수 — 1강 과제</div>
+              <div style="font-size:11px;color:var(--gray)">(주)현대모비스 · 2025.03.29 제출</div>
+              <div style="display:flex;gap:6px;margin-top:8px">
+                <button class="btn-sm btn-sm-outline">파일 보기</button>
+                <button class="btn-sm btn-sm-primary" onclick="openReviewModal('박영수','1강 과제')">검토하기</button>
+              </div>
+            </div>
+            <div style="padding:12px 20px;text-align:center">
+              <button class="btn-sm btn-sm-outline" style="width:100%" onclick="showSection(document.querySelectorAll('.sidebar-link')[3],'review')">전체 검토 목록 보기</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ 기업 프로젝트 ══ -->
+    <div id="section-projects" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">기업 프로젝트 목록</span>
+          <button class="btn-sm btn-sm-primary" onclick="openModal('newProjectModal')">+ 새 프로젝트 생성</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>기업명</th><th>담당자</th><th>참여자 수</th><th>커리큘럼</th><th>평균 진행률</th><th>시작일</th><th>종료일</th><th>상태</th><th>관리</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="td-name">(주)삼성전자</td>
+                <td>이담당</td><td>3명</td><td>기본 PIP (5강)</td>
+                <td><div class="prog-mini"><div class="prog-mini-fill c-blue" style="width:72%"></div></div>72%</td>
+                <td>2025.03.01</td><td>2025.05.31</td>
+                <td><span class="status-pill sp-progress">진행중</span></td>
+                <td style="display:flex;gap:5px">
+                  <button class="btn-sm btn-sm-outline" onclick="openProjectDetail('(주)삼성전자')">상세</button>
+                  <button class="btn-sm btn-sm-outline" style="color:var(--red);border-color:rgba(220,38,38,.2)" onclick="if(confirm('프로젝트를 종료하시겠습니까?'))alert('종료 처리됩니다.')">종료</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="td-name">(주)LG화학</td>
+                <td>박담당</td><td>1명</td><td>기본 PIP (5강)</td>
+                <td><div class="prog-mini"><div class="prog-mini-fill c-green" style="width:100%"></div></div>100%</td>
+                <td>2025.01.15</td><td>2025.03.31</td>
+                <td><span class="status-pill sp-done">완료</span></td>
+                <td style="display:flex;gap:5px">
+                  <button class="btn-sm btn-sm-outline" onclick="openProjectDetail('(주)LG화학')">상세</button>
+                  <button class="btn-sm btn-sm-outline">보고서</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="td-name">(주)현대모비스</td>
+                <td>최담당</td><td>2명</td><td>기본 PIP (5강)</td>
+                <td><div class="prog-mini"><div class="prog-mini-fill c-yellow" style="width:45%"></div></div>45%</td>
+                <td>2025.02.15</td><td>2025.05.15</td>
+                <td><span class="status-pill sp-pending">과제 대기</span></td>
+                <td style="display:flex;gap:5px">
+                  <button class="btn-sm btn-sm-outline" onclick="openProjectDetail('(주)현대모비스')">상세</button>
+                  <button class="btn-sm btn-sm-outline" style="color:var(--red);border-color:rgba(220,38,38,.2)" onclick="if(confirm('프로젝트를 종료하시겠습니까?'))alert('종료 처리됩니다.')">종료</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="td-name">OO기업(주)</td>
+                <td>김인사</td><td>5명</td><td>기본 PIP (5강)</td>
+                <td><div class="prog-mini"><div class="prog-mini-fill c-blue" style="width:28%"></div></div>28%</td>
+                <td>2025.03.15</td><td>2025.06.30</td>
+                <td><span class="status-pill sp-progress">진행중</span></td>
+                <td style="display:flex;gap:5px">
+                  <button class="btn-sm btn-sm-outline" onclick="openProjectDetail('OO기업(주)')">상세</button>
+                  <button class="btn-sm btn-sm-outline" style="color:var(--red);border-color:rgba(220,38,38,.2)" onclick="if(confirm('프로젝트를 종료하시겠습니까?'))alert('종료 처리됩니다.')">종료</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ 커리큘럼 관리 ══ -->
+    <div id="section-curriculum" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">커리큘럼 목록</span>
+          <button class="btn-sm btn-sm-primary" onclick="openModal('newCurriculumModal')">+ 새 커리큘럼 추가</button>
+        </div>
+        <!-- 기본 PIP -->
+        <div style="padding:16px 24px;background:#f8faff;border-bottom:2px solid rgba(26,63,122,.1)">
+          <div style="font-weight:700;font-size:13px;color:var(--navy)">📚 기본 PIP 커리큘럼 (5강)</div>
+          <div style="font-size:11px;color:var(--gray);margin-top:2px">현재 4개 기업 적용 중</div>
+        </div>
+        <div class="curriculum-manage-item">
+          <div class="cm-num">1</div>
+          <div class="cm-body">
+            <div class="cm-title">저성과자 개념 및 법적 기준 이해</div>
+            <div class="cm-meta">32분 · 이상호 공인노무사 · Vimeo ID: 824804225</div>
+          </div>
+          <div class="cm-actions">
+            <button class="btn-sm btn-sm-outline" onclick="openModal('editLectureModal')">수정</button>
+          </div>
+        </div>
+        <div class="curriculum-manage-item">
+          <div class="cm-num">2</div>
+          <div class="cm-body">
+            <div class="cm-title">성과향상계획(PIP) 작성 방법</div>
+            <div class="cm-meta">41분 · 이상호 공인노무사 · Vimeo ID: 824804226</div>
+          </div>
+          <div class="cm-actions">
+            <button class="btn-sm btn-sm-outline" onclick="openModal('editLectureModal')">수정</button>
+          </div>
+        </div>
+        <div class="curriculum-manage-item">
+          <div class="cm-num">3</div>
+          <div class="cm-body">
+            <div class="cm-title">자기 개발 목표 설정 실습</div>
+            <div class="cm-meta">38분 · 이상호 공인노무사 · Vimeo ID: 824804227</div>
+          </div>
+          <div class="cm-actions">
+            <button class="btn-sm btn-sm-outline" onclick="openModal('editLectureModal')">수정</button>
+          </div>
+        </div>
+        <div class="curriculum-manage-item">
+          <div class="cm-num">4</div>
+          <div class="cm-body">
+            <div class="cm-title">직무 역량 강화 전략</div>
+            <div class="cm-meta">44분 · 채형석 공인노무사 · Vimeo ID: 824804228</div>
+          </div>
+          <div class="cm-actions">
+            <button class="btn-sm btn-sm-outline" onclick="openModal('editLectureModal')">수정</button>
+          </div>
+        </div>
+        <div class="curriculum-manage-item">
+          <div class="cm-num">5</div>
+          <div class="cm-body">
+            <div class="cm-title">최종 평가 및 피드백</div>
+            <div class="cm-meta">34분 · 이상호·채형석 공인노무사 · Vimeo ID: 824804229</div>
+          </div>
+          <div class="cm-actions">
+            <button class="btn-sm btn-sm-outline" onclick="openModal('editLectureModal')">수정</button>
+          </div>
+        </div>
+        <div style="padding:14px 24px;border-top:1px solid rgba(26,63,122,.06)">
+          <button class="btn-sm btn-sm-outline" onclick="openModal('addLectureModal')">+ 강의 추가</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ 과제 검토 ══ -->
+    <div id="section-review" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">과제 검토 대기</span>
+          <span class="card-badge badge-yellow">5건</span>
+        </div>
+        <div class="review-item">
+          <div class="review-header">
+            <div>
+              <div class="review-title">홍길동 — 3강 과제 · 자기 개발 목표 설정서 작성</div>
+              <div class="review-meta">OO기업(주) · 2025.04.01 14:32 제출</div>
+            </div>
+            <span class="status-pill sp-pending">검토 대기</span>
+          </div>
+          <div class="review-file">📄 목표설정서_홍길동_v2.docx <button class="btn-sm btn-sm-outline" style="margin-left:auto">⬇ 다운로드</button></div>
+          <textarea class="feedback-input" placeholder="피드백을 입력하세요..."></textarea>
+          <div class="review-actions">
+            <button class="btn-sm btn-sm-primary" onclick="approveAssignment(this)">✅ 승인</button>
+            <button class="btn-sm btn-sm-outline" style="color:var(--red);border-color:rgba(220,38,38,.2)" onclick="rejectAssignment(this)">↩ 반려 (재제출 요청)</button>
+          </div>
+        </div>
+        <div class="review-item">
+          <div class="review-header">
+            <div>
+              <div class="review-title">김철수 — 2강 과제 · PIP 초안 작성</div>
+              <div class="review-meta">OO기업(주) · 2025.03.30 09:18 제출</div>
+            </div>
+            <span class="status-pill sp-pending">검토 대기</span>
+          </div>
+          <div class="review-file">📄 PIP_초안_김철수.docx <button class="btn-sm btn-sm-outline" style="margin-left:auto">⬇ 다운로드</button></div>
+          <textarea class="feedback-input" placeholder="피드백을 입력하세요..."></textarea>
+          <div class="review-actions">
+            <button class="btn-sm btn-sm-primary" onclick="approveAssignment(this)">✅ 승인</button>
+            <button class="btn-sm btn-sm-outline" style="color:var(--red);border-color:rgba(220,38,38,.2)" onclick="rejectAssignment(this)">↩ 반려 (재제출 요청)</button>
+          </div>
+        </div>
+        <div class="review-item">
+          <div class="review-header">
+            <div>
+              <div class="review-title">박영수 — 1강 과제 · 자기 평가서 작성</div>
+              <div class="review-meta">(주)현대모비스 · 2025.03.29 16:00 제출</div>
+            </div>
+            <span class="status-pill sp-pending">검토 대기</span>
+          </div>
+          <div class="review-file">📄 자기평가서_박영수.docx <button class="btn-sm btn-sm-outline" style="margin-left:auto">⬇ 다운로드</button></div>
+          <textarea class="feedback-input" placeholder="피드백을 입력하세요..."></textarea>
+          <div class="review-actions">
+            <button class="btn-sm btn-sm-primary" onclick="approveAssignment(this)">✅ 승인</button>
+            <button class="btn-sm btn-sm-outline" style="color:var(--red);border-color:rgba(220,38,38,.2)" onclick="rejectAssignment(this)">↩ 반려 (재제출 요청)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ 계정 관리 ══ -->
+    <div id="section-accounts" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">전체 계정 목록</span>
+          <button class="btn-sm btn-sm-primary" onclick="openModal('newAccountModal')">+ 계정 직접 생성</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>이름</th><th>이메일</th><th>역할</th><th>소속</th><th>가입일</th><th>최근 접속</th><th>상태</th><th>관리</th></tr></thead>
+            <tbody>
+              <tr><td class="td-name">이담당</td><td style="color:var(--gray)">lee@samsung.com</td><td><span class="status-pill sp-progress">기업담당자</span></td><td>(주)삼성전자</td><td>2025.03.01</td><td>2025.04.02</td><td><span class="status-pill sp-done">활성</span></td><td><button class="btn-sm btn-sm-outline">수정</button></td></tr>
+              <tr><td class="td-name">홍길동</td><td style="color:var(--gray)">hong@oocompany.com</td><td><span class="status-pill" style="background:rgba(107,114,128,.1);color:var(--gray)">참여자</span></td><td>OO기업(주)</td><td>2025.03.15</td><td>2025.04.02</td><td><span class="status-pill sp-done">활성</span></td><td><button class="btn-sm btn-sm-outline">수정</button></td></tr>
+              <tr><td class="td-name">김철수</td><td style="color:var(--gray)">kim@oocompany.com</td><td><span class="status-pill" style="background:rgba(107,114,128,.1);color:var(--gray)">참여자</span></td><td>OO기업(주)</td><td>2025.03.15</td><td>2025.03.31</td><td><span class="status-pill sp-done">활성</span></td><td><button class="btn-sm btn-sm-outline">수정</button></td></tr>
+              <tr><td class="td-name">이영희</td><td style="color:var(--gray)">lee2@oocompany.com</td><td><span class="status-pill" style="background:rgba(107,114,128,.1);color:var(--gray)">참여자</span></td><td>OO기업(주)</td><td>2025.03.15</td><td>2025.04.01</td><td><span class="status-pill sp-done">완료</span></td><td><button class="btn-sm btn-sm-outline">수정</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ 공지사항 관리 ══ -->
+    <div id="section-notice" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">공지사항 관리</span>
+          <button class="btn-sm btn-sm-primary" onclick="openModal('newNoticeModal')">+ 공지 작성</button>
+        </div>
+        <div class="review-item">
+          <div class="review-header">
+            <div>
+              <div class="review-title">3강 과제 마감 안내 (2025.04.07)</div>
+              <div class="review-meta">전체 공개 · 2025.04.02 등록</div>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn-sm btn-sm-outline">수정</button>
+              <button class="btn-sm btn-sm-outline" style="color:var(--red);border-color:rgba(220,38,38,.2)" onclick="if(confirm('삭제하시겠습니까?'))alert('삭제됩니다.')">삭제</button>
+            </div>
+          </div>
+        </div>
+        <div class="review-item">
+          <div class="review-header">
+            <div>
+              <div class="review-title">프로그램 안내 — 수강 방법 및 유의사항</div>
+              <div class="review-meta">전체 공개 · 2025.03.15 등록</div>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn-sm btn-sm-outline">수정</button>
+              <button class="btn-sm btn-sm-outline" style="color:var(--red);border-color:rgba(220,38,38,.2)" onclick="if(confirm('삭제하시겠습니까?'))alert('삭제됩니다.')">삭제</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ── 새 프로젝트 생성 모달 ── -->
+<div class="overlay" id="newProjectModal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('newProjectModal')">×</button>
+    <h2 class="modal-title">새 프로젝트 생성</h2>
+    <p class="modal-sub">기업 정보와 담당자 계정을 입력하면 프로젝트가 생성됩니다.</p>
+    <div class="ok-msg" id="projectOk">✅ 프로젝트가 생성되었습니다. 담당자에게 계정 발급 이메일이 발송됩니다.</div>
+    <div class="err-msg" id="projectErr"></div>
+    <div class="mf"><label>기업명</label><input type="text" id="projCompany" placeholder="(주)OO기업"/></div>
+    <div class="mf-row">
+      <div class="mf"><label>담당자 이름</label><input type="text" id="projManager" placeholder="홍담당"/></div>
+      <div class="mf"><label>담당자 이메일</label><input type="email" id="projEmail" placeholder="hr@company.com"/></div>
+    </div>
+    <div class="mf">
+      <label>커리큘럼 배정</label>
+      <select id="projCurriculum">
+        <option>기본 PIP 커리큘럼 (5강)</option>
+        <option>단기 PIP 커리큘럼 (3강)</option>
+      </select>
+    </div>
+    <div class="mf-row">
+      <div class="mf"><label>시작일</label><input type="date" id="projStart"/></div>
+      <div class="mf"><label>종료일</label><input type="date" id="projEnd"/></div>
+    </div>
+    <div class="mf"><label>특이사항 (선택)</label><textarea id="projNote" placeholder="프로그램 운영 관련 특이사항" rows="3"></textarea></div>
+    <button class="btn-full" onclick="createProject()">프로젝트 생성 및 담당자 계정 발급</button>
+  </div>
+</div>
+
+<!-- ── 프로젝트 상세 모달 ── -->
+<div class="overlay" id="projectDetailModal">
+  <div class="modal-box" style="max-width:600px">
+    <button class="modal-close" onclick="closeModal('projectDetailModal')">×</button>
+    <h2 class="modal-title" id="projDetailName">프로젝트 상세</h2>
+    <p class="modal-sub">기업 프로젝트 상세 현황</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+      <div style="background:#f8faff;padding:14px 16px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--gray);text-transform:uppercase;margin-bottom:4px">참여자 수</div>
+        <div style="font-family:var(--ff-serif);font-size:24px;font-weight:600;color:var(--navy)" id="pdParticipants">3명</div>
+      </div>
+      <div style="background:#f8faff;padding:14px 16px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--gray);text-transform:uppercase;margin-bottom:4px">평균 진행률</div>
+        <div style="font-family:var(--ff-serif);font-size:24px;font-weight:600;color:var(--navy2)" id="pdProgress">72%</div>
+      </div>
+    </div>
+    <div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--navy2);border-bottom:1px solid rgba(26,63,122,.1);padding-bottom:8px;margin-bottom:12px">참여자 현황</div>
+    <div id="pdParticipantList" style="font-size:13px;color:var(--gray)"></div>
+    <div style="margin-top:20px;display:flex;gap:8px">
+      <button class="btn-full" onclick="alert('PDF 보고서를 생성합니다.')">📑 PDF 보고서 생성</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 과제 검토 빠른 모달 ── -->
+<div class="overlay" id="reviewModal">
+  <div class="modal-box" style="max-width:480px">
+    <button class="modal-close" onclick="closeModal('reviewModal')">×</button>
+    <h2 class="modal-title" id="reviewModalTitle">과제 검토</h2>
+    <p class="modal-sub" id="reviewModalSub">제출된 과제를 검토하고 피드백을 입력하세요.</p>
+    <div class="review-file">📄 과제파일.docx <button class="btn-sm btn-sm-outline" style="margin-left:auto">⬇ 다운로드</button></div>
+    <div class="mf"><label>피드백</label><textarea id="reviewFeedback" placeholder="피드백을 입력하세요..." rows="4"></textarea></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn-full" onclick="approveFromModal()" style="background:var(--green)">✅ 승인</button>
+      <button class="btn-full" onclick="rejectFromModal()" style="background:var(--red)">↩ 반려</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 강의 수정 모달 ── -->
+<div class="overlay" id="editLectureModal">
+  <div class="modal-box" style="max-width:480px">
+    <button class="modal-close" onclick="closeModal('editLectureModal')">×</button>
+    <h2 class="modal-title">강의 수정</h2>
+    <div class="mf"><label>강의 제목</label><input type="text" value="저성과자 개념 및 법적 기준 이해"/></div>
+    <div class="mf"><label>Vimeo 영상 ID</label><input type="text" value="824804225" placeholder="Vimeo 영상 업로드 후 ID 입력"/></div>
+    <div class="mf-row">
+      <div class="mf"><label>강의 시간</label><input type="text" value="32분"/></div>
+      <div class="mf"><label>강사</label><input type="text" value="이상호 공인노무사"/></div>
+    </div>
+    <div class="mf"><label>과제 내용</label><textarea rows="3">자기 평가서를 작성하여 제출하세요.</textarea></div>
+    <button class="btn-full" onclick="alert('저장되었습니다.');closeModal('editLectureModal')">저장</button>
+  </div>
+</div>
+
+<!-- ── 새 공지 모달 ── -->
+<div class="overlay" id="newNoticeModal">
+  <div class="modal-box" style="max-width:480px">
+    <button class="modal-close" onclick="closeModal('newNoticeModal')">×</button>
+    <h2 class="modal-title">공지사항 작성</h2>
+    <div class="mf"><label>제목</label><input type="text" placeholder="공지 제목"/></div>
+    <div class="mf"><label>내용</label><textarea rows="5" placeholder="공지 내용을 입력하세요"></textarea></div>
+    <div class="mf">
+      <label>공개 대상</label>
+      <select><option>전체</option><option>기업 담당자</option><option>참여자</option></select>
+    </div>
+    <button class="btn-full" onclick="alert('공지사항이 등록되었습니다.');closeModal('newNoticeModal')">등록</button>
+  </div>
+</div>
+
+<script>
+  const sectionTitles = { dashboard:'전체 현황', projects:'기업 프로젝트', curriculum:'커리큘럼 관리', review:'과제 검토', accounts:'계정 관리', notice:'공지사항 관리' };
+
+  function showSection(btn, id) {
+    document.querySelectorAll('[id^="section-"]').forEach(s => s.style.display = 'none');
+    document.getElementById('section-' + id).style.display = '';
+    document.getElementById('topbarTitle').textContent = sectionTitles[id];
+    document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+  }
+
+  function openModal(id)  { document.getElementById(id).classList.add('open'); document.body.style.overflow = 'hidden'; }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); document.body.style.overflow = ''; }
+  document.querySelectorAll('.overlay').forEach(el => {
+    el.addEventListener('click', e => { if(e.target===el){ el.classList.remove('open'); document.body.style.overflow=''; }});
+  });
+
+  const projectData = {
+    '(주)삼성전자':  { participants:3, progress:'72%', list:['이○○ — 진행중 (80%)', '박○○ — 진행중 (70%)', '최○○ — 진행중 (65%)'] },
+    '(주)LG화학':   { participants:1, progress:'100%', list:['정○○ — 완료 (100%)'] },
+    '(주)현대모비스':{ participants:2, progress:'45%', list:['박영수 — 진행중 (50%)', '김○○ — 과제대기 (40%)'] },
+    'OO기업(주)':   { participants:5, progress:'28%', list:['홍길동 — 진행중 (40%)', '김철수 — 과제대기 (20%)', '이영희 — 완료 (100%)', '최○○ — 진행중 (15%)', '강○○ — 진행중 (10%)'] },
+  };
+
+  function openProjectDetail(name) {
+    const d = projectData[name];
+    if (!d) return;
+    document.getElementById('projDetailName').textContent = name;
+    document.getElementById('pdParticipants').textContent = d.participants + '명';
+    document.getElementById('pdProgress').textContent = d.progress;
+    document.getElementById('pdParticipantList').innerHTML = d.list.map(p =>
+      `<div style="padding:8px 0;border-bottom:1px solid rgba(26,63,122,.05);font-size:13px;color:#374151">${p}</div>`
+    ).join('');
+    openModal('projectDetailModal');
+  }
+
+  function createProject() {
+    const company = document.getElementById('projCompany').value.trim();
+    const email   = document.getElementById('projEmail').value.trim();
+    const err = document.getElementById('projectErr');
+    const ok  = document.getElementById('projectOk');
+    if (!company || !email) { err.textContent='기업명과 담당자 이메일을 입력해주세요.'; err.style.display='block'; return; }
+    err.style.display = 'none';
+    // TODO: Firebase 연동
+    ok.style.display = 'block';
+    setTimeout(() => { ok.style.display='none'; closeModal('newProjectModal'); }, 2000);
+  }
+
+  function openReviewModal(name, assignment) {
+    document.getElementById('reviewModalTitle').textContent = name + ' — ' + assignment;
+    document.getElementById('reviewModalSub').textContent = '제출된 과제를 검토하고 피드백을 입력하세요.';
+    document.getElementById('reviewFeedback').value = '';
+    openModal('reviewModal');
+  }
+
+  function approveAssignment(btn) {
+    const item = btn.closest('.review-item');
+    const pill = item.querySelector('.status-pill');
+    pill.textContent = '승인 완료';
+    pill.className = 'status-pill sp-done';
+    btn.closest('.review-actions').innerHTML = '<span style="font-size:12px;color:var(--green);font-weight:600">✅ 승인 처리되었습니다</span>';
+  }
+
+  function rejectAssignment(btn) {
+    const feedback = btn.closest('.review-item').querySelector('.feedback-input').value.trim();
+    if (!feedback) { alert('반려 시 피드백을 반드시 입력해주세요.'); return; }
+    const item = btn.closest('.review-item');
+    const pill = item.querySelector('.status-pill');
+    pill.textContent = '반려';
+    pill.className = 'status-pill sp-late';
+    btn.closest('.review-actions').innerHTML = '<span style="font-size:12px;color:var(--red);font-weight:600">↩ 재제출 요청이 발송되었습니다</span>';
+  }
+
+  function approveFromModal() {
+    alert('승인 처리되었습니다.');
+    closeModal('reviewModal');
+  }
+  function rejectFromModal() {
+    const fb = document.getElementById('reviewFeedback').value.trim();
+    if (!fb) { alert('반려 시 피드백을 반드시 입력해주세요.'); return; }
+    alert('반려 처리 및 재제출 요청이 발송되었습니다.');
+    closeModal('reviewModal');
+  }
+</script>
+</body>
+</html>

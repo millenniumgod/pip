@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>기업 담당자 | CNL PIP Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;0,600;1,300;1,500&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root {
+      --navy:   #1a3f7a;
+      --navy2:  #1e4fa0;
+      --dark:   #0d1b2a;
+      --cream:  #f5f0e8;
+      --light:  #fafaf7;
+      --gray:   #6b7280;
+      --white:  #ffffff;
+      --green:  #16a34a;
+      --yellow: #ca8a04;
+      --red:    #dc2626;
+      --ff-serif: 'Cormorant Garamond',serif;
+      --ff-sans:  'Noto Sans KR',sans-serif;
+    }
+    html { scroll-behavior:smooth; }
+    body { font-family:var(--ff-sans); font-size:14px; line-height:1.75; color:var(--dark); background:#f3f6fb; overflow-x:hidden; }
+
+    /* ── SIDEBAR ── */
+    .sidebar { position:fixed; top:0; left:0; width:240px; height:100vh; background:var(--dark); z-index:200; display:flex; flex-direction:column; overflow-y:auto; }
+    .sidebar-logo { padding:24px 20px 20px; border-bottom:1px solid rgba(255,255,255,.07); }
+    .sidebar-logo-badge { background:var(--navy2); color:#fff; font-family:var(--ff-serif); font-size:11px; font-weight:600; letter-spacing:.1em; padding:3px 8px; display:inline-block; margin-bottom:6px; }
+    .sidebar-logo-title { font-family:var(--ff-serif); font-size:16px; font-weight:600; color:#fff; }
+    .sidebar-logo-sub { font-size:10px; color:rgba(255,255,255,.35); letter-spacing:.08em; margin-top:2px; }
+    .sidebar-user { padding:16px 20px; border-bottom:1px solid rgba(255,255,255,.07); }
+    .sidebar-company { font-size:13px; font-weight:700; color:#fff; margin-bottom:2px; }
+    .sidebar-user-name { font-size:11px; color:rgba(255,255,255,.45); }
+    .sidebar-nav { padding:12px 0; flex:1; }
+    .nav-section-label { font-size:9px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.25); padding:12px 20px 6px; }
+    .sidebar-link { display:flex; align-items:center; gap:10px; padding:10px 20px; font-size:13px; color:rgba(255,255,255,.5); text-decoration:none; transition:all .15s; cursor:pointer; border:none; background:none; width:100%; font-family:var(--ff-sans); }
+    .sidebar-link:hover { background:rgba(255,255,255,.06); color:rgba(255,255,255,.85); }
+    .sidebar-link.active { background:rgba(30,79,160,.25); color:#fff; border-left:3px solid var(--navy2); }
+    .sidebar-link-icon { font-size:15px; flex-shrink:0; }
+    .sidebar-link-badge { margin-left:auto; background:var(--red); color:#fff; font-size:9px; font-weight:700; padding:2px 6px; border-radius:10px; }
+    .sidebar-bottom { padding:16px 20px; border-top:1px solid rgba(255,255,255,.07); }
+    .sidebar-logout { font-size:12px; color:rgba(255,255,255,.3); cursor:pointer; background:none; border:none; font-family:var(--ff-sans); transition:color .2s; }
+    .sidebar-logout:hover { color:rgba(255,255,255,.6); }
+
+    /* ── MAIN ── */
+    .main { margin-left:240px; min-height:100vh; }
+    .topbar { background:#fff; border-bottom:1px solid rgba(26,63,122,.08); padding:0 32px; height:60px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+    .topbar-title { font-family:var(--ff-serif); font-size:18px; font-weight:500; color:var(--navy); }
+    .topbar-right { display:flex; align-items:center; gap:16px; }
+    .topbar-notif { position:relative; cursor:pointer; font-size:18px; color:var(--gray); }
+    .notif-dot { position:absolute; top:-2px; right:-2px; width:8px; height:8px; border-radius:50%; background:var(--red); border:2px solid #fff; }
+    .content { padding:28px 32px; }
+
+    /* ── 개요 카드 ── */
+    .overview-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+    .ov-card { background:#fff; padding:20px 22px; border-top:3px solid var(--navy); }
+    .ov-label { font-size:11px; font-weight:600; letter-spacing:.08em; color:var(--gray); text-transform:uppercase; margin-bottom:8px; }
+    .ov-value { font-family:var(--ff-serif); font-size:2rem; font-weight:600; color:var(--navy); line-height:1; margin-bottom:4px; }
+    .ov-sub { font-size:11px; color:var(--gray); }
+    .ov-card.green { border-top-color:var(--green); } .ov-card.green .ov-value { color:var(--green); }
+    .ov-card.yellow { border-top-color:var(--yellow); } .ov-card.yellow .ov-value { color:var(--yellow); }
+    .ov-card.red { border-top-color:var(--red); } .ov-card.red .ov-value { color:var(--red); }
+
+    /* ── CARD 공통 ── */
+    .card { background:#fff; overflow:hidden; margin-bottom:20px; }
+    .card-header { padding:18px 24px 14px; border-bottom:1px solid rgba(26,63,122,.06); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+    .card-title { font-weight:700; font-size:14px; color:var(--navy); }
+    .card-badge { font-size:10px; font-weight:700; letter-spacing:.06em; padding:3px 10px; }
+    .badge-blue { background:rgba(26,63,122,.08); color:var(--navy); }
+    .badge-green { background:rgba(22,163,74,.1); color:var(--green); }
+    .badge-yellow { background:rgba(202,138,4,.1); color:var(--yellow); }
+
+    /* ── 참여자 테이블 ── */
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; }
+    thead tr { background:#f8faff; }
+    thead th { padding:11px 16px; font-size:11px; font-weight:700; letter-spacing:.06em; color:var(--gray); text-align:left; border-bottom:1px solid rgba(26,63,122,.08); white-space:nowrap; }
+    tbody tr { border-bottom:1px solid rgba(26,63,122,.05); transition:background .15s; }
+    tbody tr:hover { background:#fafbff; }
+    tbody tr:last-child { border-bottom:none; }
+    tbody td { padding:13px 16px; font-size:13px; color:#374151; vertical-align:middle; }
+    .td-name { font-weight:600; color:var(--dark); }
+    .prog-mini { height:5px; background:#e9eef6; border-radius:3px; overflow:hidden; width:80px; display:inline-block; vertical-align:middle; margin-right:6px; }
+    .prog-mini-fill { height:100%; background:var(--navy2); border-radius:3px; }
+    .prog-mini-fill.done { background:var(--green); }
+    .prog-mini-fill.warn { background:var(--yellow); }
+    .status-pill { font-size:10px; font-weight:700; letter-spacing:.04em; padding:3px 10px; border-radius:20px; white-space:nowrap; }
+    .sp-done { background:rgba(22,163,74,.1); color:var(--green); }
+    .sp-progress { background:rgba(26,63,122,.08); color:var(--navy2); }
+    .sp-pending { background:rgba(202,138,4,.1); color:var(--yellow); }
+    .sp-late { background:rgba(220,38,38,.1); color:var(--red); }
+    .btn-sm { font-size:11px; font-weight:700; padding:5px 12px; border:none; cursor:pointer; font-family:var(--ff-sans); letter-spacing:.04em; transition:all .2s; }
+    .btn-sm-outline { background:transparent; color:var(--navy); border:1.5px solid rgba(26,63,122,.2); }
+    .btn-sm-outline:hover { border-color:var(--navy); background:rgba(26,63,122,.04); }
+    .btn-sm-primary { background:var(--navy); color:#fff; }
+    .btn-sm-primary:hover { background:var(--navy2); }
+
+    /* ── 파일 관리 ── */
+    .file-grid { padding:20px 24px; display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; }
+    .file-card { border:1px solid rgba(26,63,122,.1); padding:16px; display:flex; flex-direction:column; gap:8px; transition:border-color .2s,box-shadow .2s; }
+    .file-card:hover { border-color:var(--navy2); box-shadow:0 4px 16px rgba(26,63,122,.08); }
+    .file-icon { font-size:28px; }
+    .file-name { font-size:12px; font-weight:600; color:var(--dark); line-height:1.4; word-break:break-all; }
+    .file-meta { font-size:11px; color:var(--gray); }
+    .file-actions { display:flex; gap:6px; margin-top:4px; }
+
+    /* ── 업로드 드롭존 ── */
+    .upload-zone { border:2px dashed rgba(26,63,122,.2); padding:28px 20px; text-align:center; cursor:pointer; transition:all .2s; margin:16px 24px; }
+    .upload-zone:hover { border-color:var(--navy); background:#f8faff; }
+    .upload-zone-icon { font-size:28px; margin-bottom:8px; }
+    .upload-zone-text { font-size:13px; color:var(--gray); }
+    .upload-zone-text strong { color:var(--navy); }
+
+    /* ── 보고서 섹션 ── */
+    .report-item { padding:16px 24px; border-bottom:1px solid rgba(26,63,122,.05); display:flex; align-items:center; gap:16px; }
+    .report-item:last-child { border-bottom:none; }
+    .report-icon { font-size:24px; flex-shrink:0; }
+    .report-title { font-size:13px; font-weight:600; color:var(--dark); }
+    .report-meta { font-size:11px; color:var(--gray); margin-top:2px; }
+    .report-actions { margin-left:auto; display:flex; gap:8px; }
+
+    /* ── 참여자 상세 모달 ── */
+    .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:9999; align-items:center; justify-content:center; padding:20px; }
+    .overlay.open { display:flex; }
+    .modal-box { background:#fff; width:100%; max-width:600px; padding:40px; position:relative; max-height:90vh; overflow-y:auto; }
+    .modal-close { position:absolute; top:14px; right:18px; background:none; border:none; font-size:22px; cursor:pointer; color:#9ca3af; }
+    .modal-title { font-family:var(--ff-serif); font-size:22px; font-weight:500; color:var(--navy); margin-bottom:6px; }
+    .modal-sub { font-size:13px; color:var(--gray); margin-bottom:22px; }
+    .detail-section { margin-bottom:20px; }
+    .detail-section-title { font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--navy2); border-bottom:1px solid rgba(26,63,122,.1); padding-bottom:8px; margin-bottom:12px; }
+    .detail-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(26,63,122,.04); font-size:13px; }
+    .detail-row:last-child { border-bottom:none; }
+    .detail-label { color:var(--gray); }
+    .detail-value { font-weight:600; color:var(--dark); }
+    .prog-bar-full { height:8px; background:#e9eef6; border-radius:4px; overflow:hidden; margin-top:8px; }
+    .prog-bar-fill { height:100%; background:linear-gradient(90deg, var(--navy), var(--navy2)); border-radius:4px; }
+    .assignment-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid rgba(26,63,122,.05); font-size:13px; }
+    .assignment-row:last-child { border-bottom:none; }
+
+    /* ── 참여자 추가 모달 ── */
+    .mf { margin-bottom:14px; }
+    .mf label { display:block; font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--gray); margin-bottom:5px; }
+    .mf input, .mf select { width:100%; background:#f9f9f6; border:1px solid rgba(13,27,42,.12); padding:10px 13px; font-family:var(--ff-sans); font-size:13px; color:var(--dark); outline:none; transition:border-color .2s; }
+    .mf input:focus, .mf select:focus { border-color:var(--navy); }
+    .btn-full { width:100%; padding:13px; background:var(--navy); color:#fff; border:none; font-family:var(--ff-sans); font-size:13px; font-weight:700; letter-spacing:.06em; cursor:pointer; transition:background .2s; margin-top:4px; }
+    .btn-full:hover { background:var(--navy2); }
+    .ok-msg { display:none; background:#f0fdf4; border:1px solid rgba(22,163,74,.2); color:var(--green); font-size:13px; padding:10px 12px; margin-bottom:14px; }
+    .err-msg { display:none; background:#fdf0ee; color:var(--red); font-size:13px; padding:10px 12px; margin-bottom:14px; }
+
+    /* ── 반응형 ── */
+    @media(max-width:1100px) { .overview-grid{grid-template-columns:1fr 1fr} }
+    @media(max-width:768px) {
+      .sidebar{transform:translateX(-100%);transition:transform .3s}
+      .sidebar.open{transform:translateX(0)}
+      .main{margin-left:0}
+      .topbar,.content{padding-left:20px;padding-right:20px}
+    }
+    @media(max-width:480px) { .overview-grid{grid-template-columns:1fr} }
+  </style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-badge">CNL</div>
+    <div class="sidebar-logo-title">PIP Platform</div>
+    <div class="sidebar-logo-sub">성과향상 프로그램</div>
+  </div>
+  <div class="sidebar-user">
+    <div class="sidebar-company">(주)OO기업</div>
+    <div class="sidebar-user-name">김인사 · HR 담당자</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">메인</div>
+    <button class="sidebar-link active" onclick="showSection(this,'dashboard')">
+      <span class="sidebar-link-icon">📊</span> 대시보드
+    </button>
+    <button class="sidebar-link" onclick="showSection(this,'participants')">
+      <span class="sidebar-link-icon">👥</span> 참여자 관리
+    </button>
+    <button class="sidebar-link" onclick="showSection(this,'files')">
+      <span class="sidebar-link-icon">📁</span> 파일 관리
+      <span class="sidebar-link-badge">3</span>
+    </button>
+    <button class="sidebar-link" onclick="showSection(this,'report')">
+      <span class="sidebar-link-icon">📑</span> 보고서
+    </button>
+    <div class="nav-section-label">설정</div>
+    <button class="sidebar-link" onclick="showSection(this,'notice')">
+      <span class="sidebar-link-icon">📢</span> 공지사항
+    </button>
+  </nav>
+  <div class="sidebar-bottom">
+    <button class="sidebar-logout" onclick="if(confirm('로그아웃 하시겠습니까?')) location.href='lecture-index.html'">로그아웃</button>
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<main class="main">
+  <div class="topbar">
+    <span class="topbar-title" id="topbarTitle">대시보드</span>
+    <div class="topbar-right">
+      <button class="btn-sm btn-sm-primary" onclick="openModal('addParticipantModal')" style="font-size:12px;padding:7px 16px">+ 참여자 추가</button>
+      <div class="topbar-notif">🔔<div class="notif-dot"></div></div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ══ 대시보드 ══ -->
+    <div id="section-dashboard">
+      <div class="overview-grid">
+        <div class="ov-card">
+          <div class="ov-label">전체 참여자</div>
+          <div class="ov-value">3</div>
+          <div class="ov-sub">등록된 참여자 수</div>
+        </div>
+        <div class="ov-card green">
+          <div class="ov-label">프로그램 완료</div>
+          <div class="ov-value">1</div>
+          <div class="ov-sub">전체 과정 이수</div>
+        </div>
+        <div class="ov-card yellow">
+          <div class="ov-label">과제 미제출</div>
+          <div class="ov-value">3</div>
+          <div class="ov-sub">제출 대기 건수</div>
+        </div>
+        <div class="ov-card red">
+          <div class="ov-label">마감 임박</div>
+          <div class="ov-value">2</div>
+          <div class="ov-sub">7일 이내 마감</div>
+        </div>
+      </div>
+
+      <!-- 참여자 현황 테이블 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">참여자 현황</span>
+          <span class="card-badge badge-blue">3명</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>이름</th>
+                <th>진행률</th>
+                <th>완료 강의</th>
+                <th>미제출 과제</th>
+                <th>최근 접속</th>
+                <th>상태</th>
+                <th>상세</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="td-name">홍길동</td>
+                <td>
+                  <div class="prog-mini"><div class="prog-mini-fill" style="width:40%"></div></div>
+                  40%
+                </td>
+                <td>2 / 5</td>
+                <td><span style="color:var(--yellow);font-weight:700">2건</span></td>
+                <td>2025.04.02</td>
+                <td><span class="status-pill sp-progress">진행중</span></td>
+                <td><button class="btn-sm btn-sm-outline" onclick="openDetail('홍길동',40,2,2)">보기</button></td>
+              </tr>
+              <tr>
+                <td class="td-name">김철수</td>
+                <td>
+                  <div class="prog-mini"><div class="prog-mini-fill" style="width:20%"></div></div>
+                  20%
+                </td>
+                <td>1 / 5</td>
+                <td><span style="color:var(--red);font-weight:700">1건</span></td>
+                <td>2025.03.31</td>
+                <td><span class="status-pill sp-pending">과제 대기</span></td>
+                <td><button class="btn-sm btn-sm-outline" onclick="openDetail('김철수',20,1,1)">보기</button></td>
+              </tr>
+              <tr>
+                <td class="td-name">이영희</td>
+                <td>
+                  <div class="prog-mini"><div class="prog-mini-fill done" style="width:100%"></div></div>
+                  100%
+                </td>
+                <td>5 / 5</td>
+                <td><span style="color:var(--green);font-weight:700">0건</span></td>
+                <td>2025.04.01</td>
+                <td><span class="status-pill sp-done">완료</span></td>
+                <td><button class="btn-sm btn-sm-outline" onclick="openDetail('이영희',100,5,0)">보기</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 최근 제출 파일 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">최근 제출 파일</span>
+          <button class="btn-sm btn-sm-outline" onclick="showSection(document.querySelector('.sidebar-link:nth-child(4)'),'files')">전체 보기</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>파일명</th><th>제출자</th><th>강의</th><th>제출일시</th><th>상태</th><th>다운로드</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>📄 자기평가서_이영희.docx</td>
+                <td class="td-name">이영희</td>
+                <td>5강</td>
+                <td>2025.04.01 14:32</td>
+                <td><span class="status-pill sp-done">승인</span></td>
+                <td><button class="btn-sm btn-sm-outline">⬇</button></td>
+              </tr>
+              <tr>
+                <td>📄 목표설정서_홍길동_v2.docx</td>
+                <td class="td-name">홍길동</td>
+                <td>3강</td>
+                <td>2025.04.01 11:05</td>
+                <td><span class="status-pill sp-pending">검토중</span></td>
+                <td><button class="btn-sm btn-sm-outline">⬇</button></td>
+              </tr>
+              <tr>
+                <td>📄 PIP_초안_김철수.docx</td>
+                <td class="td-name">김철수</td>
+                <td>2강</td>
+                <td>2025.03.30 09:18</td>
+                <td><span class="status-pill sp-done">승인</span></td>
+                <td><button class="btn-sm btn-sm-outline">⬇</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ 참여자 관리 ══ -->
+    <div id="section-participants" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">참여자 목록</span>
+          <div style="display:flex;gap:8px">
+            <button class="btn-sm btn-sm-outline" onclick="downloadAll()">⬇ 전체 현황 다운로드</button>
+            <button class="btn-sm btn-sm-primary" onclick="openModal('addParticipantModal')">+ 참여자 추가</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>이름</th><th>이메일</th><th>등록일</th><th>진행률</th><th>완료 강의</th><th>미제출 과제</th><th>상태</th><th>관리</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="td-name">홍길동</td>
+                <td style="color:var(--gray)">hong@oocompany.com</td>
+                <td>2025.03.15</td>
+                <td><div class="prog-mini"><div class="prog-mini-fill" style="width:40%"></div></div>40%</td>
+                <td>2 / 5</td>
+                <td><span style="color:var(--yellow);font-weight:700">2건</span></td>
+                <td><span class="status-pill sp-progress">진행중</span></td>
+                <td style="display:flex;gap:6px">
+                  <button class="btn-sm btn-sm-outline" onclick="openDetail('홍길동',40,2,2)">상세</button>
+                  <button class="btn-sm btn-sm-outline" style="color:var(--red);border-color:rgba(220,38,38,.2)" onclick="if(confirm('삭제하시겠습니까?'))alert('삭제 처리됩니다.')">삭제</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="td-name">김철수</td>
+                <td style="color:var(--gray)">kim@oocompany.com</td>
+                <td>2025.03.15</td>
+                <td><div class="prog-mini"><div class="prog-mini-fill" style="width:20%"></div></div>20%</td>
+                <td>1 / 5</td>
+                <td><span style="color:var(--red);font-weight:700">1건</span></td>
+                <td><span class="status-pill sp-pending">과제 대기</span></td>
+                <td style="display:flex;gap:6px">
+                  <button class="btn-sm btn-sm-outline" onclick="openDetail('김철수',20,1,1)">상세</button>
+                  <button class="btn-sm btn-sm-outline" style="color:var(--red);border-color:rgba(220,38,38,.2)" onclick="if(confirm('삭제하시겠습니까?'))alert('삭제 처리됩니다.')">삭제</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="td-name">이영희</td>
+                <td style="color:var(--gray)">lee@oocompany.com</td>
+                <td>2025.03.15</td>
+                <td><div class="prog-mini"><div class="prog-mini-fill done" style="width:100%"></div></div>100%</td>
+                <td>5 / 5</td>
+                <td><span style="color:var(--green);font-weight:700">0건</span></td>
+                <td><span class="status-pill sp-done">완료</span></td>
+                <td style="display:flex;gap:6px">
+                  <button class="btn-sm btn-sm-outline" onclick="openDetail('이영희',100,5,0)">상세</button>
+                  <button class="btn-sm btn-sm-outline" style="color:var(--red);border-color:rgba(220,38,38,.2)" onclick="if(confirm('삭제하시겠습니까?'))alert('삭제 처리됩니다.')">삭제</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ 파일 관리 ══ -->
+    <div id="section-files" style="display:none">
+      <!-- 참여자 제출 파일 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">📥 참여자 제출 파일</span>
+          <button class="btn-sm btn-sm-primary" onclick="downloadAll()">⬇ 전체 다운로드</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>파일명</th><th>제출자</th><th>강의</th><th>제출일시</th><th>상태</th><th>다운로드</th></tr></thead>
+            <tbody>
+              <tr><td>📄 자기평가서_이영희.docx</td><td class="td-name">이영희</td><td>5강</td><td>2025.04.01 14:32</td><td><span class="status-pill sp-done">승인</span></td><td><button class="btn-sm btn-sm-outline">⬇</button></td></tr>
+              <tr><td>📄 목표설정서_홍길동_v2.docx</td><td class="td-name">홍길동</td><td>3강</td><td>2025.04.01 11:05</td><td><span class="status-pill sp-pending">검토중</span></td><td><button class="btn-sm btn-sm-outline">⬇</button></td></tr>
+              <tr><td>📄 PIP_초안_김철수.docx</td><td class="td-name">김철수</td><td>2강</td><td>2025.03.30 09:18</td><td><span class="status-pill sp-done">승인</span></td><td><button class="btn-sm btn-sm-outline">⬇</button></td></tr>
+              <tr><td>📄 자기평가서_홍길동.docx</td><td class="td-name">홍길동</td><td>1강</td><td>2025.03.20 10:00</td><td><span class="status-pill sp-done">승인</span></td><td><button class="btn-sm btn-sm-outline">⬇</button></td></tr>
+              <tr><td>📄 자기평가서_김철수.docx</td><td class="td-name">김철수</td><td>1강</td><td>2025.03.19 16:45</td><td><span class="status-pill sp-done">승인</span></td><td><button class="btn-sm btn-sm-outline">⬇</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 기업 업로드 파일 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">📤 기업 업로드 파일</span>
+          <span class="card-badge badge-blue">3개</span>
+        </div>
+        <div class="upload-zone" onclick="document.getElementById('companyFileInput').click()">
+          <div class="upload-zone-icon">📎</div>
+          <div class="upload-zone-text"><strong>클릭</strong>하거나 파일을 드래그하여 업로드</div>
+          <div style="font-size:11px;color:#9ca3af;margin-top:4px">참여자 전체가 열람 가능한 자료를 업로드하세요</div>
+        </div>
+        <input type="file" id="companyFileInput" style="display:none" onchange="handleCompanyUpload(this)"/>
+        <div class="file-grid">
+          <div class="file-card">
+            <div class="file-icon">📄</div>
+            <div class="file-name">PIP 작성 가이드라인.pdf</div>
+            <div class="file-meta">노무법인 C&amp;L · 2025.03.15</div>
+            <div class="file-actions">
+              <button class="btn-sm btn-sm-outline">⬇ 다운로드</button>
+            </div>
+          </div>
+          <div class="file-card">
+            <div class="file-icon">📄</div>
+            <div class="file-name">자기 개발 목표 설정 양식.docx</div>
+            <div class="file-meta">노무법인 C&amp;L · 2025.03.15</div>
+            <div class="file-actions">
+              <button class="btn-sm btn-sm-outline">⬇ 다운로드</button>
+            </div>
+          </div>
+          <div class="file-card">
+            <div class="file-icon">📄</div>
+            <div class="file-name">성과향상계획(PIP) 양식.docx</div>
+            <div class="file-meta">노무법인 C&amp;L · 2025.03.15</div>
+            <div class="file-actions">
+              <button class="btn-sm btn-sm-outline">⬇ 다운로드</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ 보고서 ══ -->
+    <div id="section-report" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">📑 진행 현황 보고서</span>
+        </div>
+        <div class="report-item">
+          <div class="report-icon">📊</div>
+          <div>
+            <div class="report-title">전체 진행 현황 보고서</div>
+            <div class="report-meta">전체 참여자 수강률, 과제 제출 현황 종합 · 자동 생성</div>
+          </div>
+          <div class="report-actions">
+            <button class="btn-sm btn-sm-outline">미리보기</button>
+            <button class="btn-sm btn-sm-primary" onclick="alert('PDF 보고서를 생성합니다.\n(실제 운영 시 활성화됩니다)')">PDF 다운로드</button>
+          </div>
+        </div>
+        <div class="report-item">
+          <div class="report-icon">👤</div>
+          <div>
+            <div class="report-title">참여자별 개인 보고서</div>
+            <div class="report-meta">개인 수강 이력, 과제 제출 기록, 피드백 포함</div>
+          </div>
+          <div class="report-actions">
+            <button class="btn-sm btn-sm-outline">미리보기</button>
+            <button class="btn-sm btn-sm-primary" onclick="alert('개인 보고서를 생성합니다.\n(실제 운영 시 활성화됩니다)')">PDF 다운로드</button>
+          </div>
+        </div>
+        <div class="report-item">
+          <div class="report-icon">📋</div>
+          <div>
+            <div class="report-title">과제 제출 이력 보고서</div>
+            <div class="report-meta">전체 과제 제출 현황 및 피드백 기록 포함</div>
+          </div>
+          <div class="report-actions">
+            <button class="btn-sm btn-sm-outline">미리보기</button>
+            <button class="btn-sm btn-sm-primary" onclick="alert('과제 보고서를 생성합니다.\n(실제 운영 시 활성화됩니다)')">PDF 다운로드</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ 공지사항 ══ -->
+    <div id="section-notice" style="display:none">
+      <div class="card">
+        <div class="card-header"><span class="card-title">공지사항</span></div>
+        <div class="report-item">
+          <div class="report-icon">🔔</div>
+          <div>
+            <div class="report-title">3강 과제 마감 안내 (2025.04.07)</div>
+            <div class="report-meta">홍길동 참여자의 3강 과제 마감이 5일 남았습니다. · 2025.04.02</div>
+          </div>
+        </div>
+        <div class="report-item">
+          <div class="report-icon">📢</div>
+          <div>
+            <div class="report-title">프로그램 안내 — 수강 방법 및 유의사항</div>
+            <div class="report-meta">노무법인 C&amp;L · 2025.03.15</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ── 참여자 상세 모달 ── -->
+<div class="overlay" id="detailModal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('detailModal')">×</button>
+    <h2 class="modal-title" id="detailName">홍길동</h2>
+    <p class="modal-sub">(주)OO기업 · 프로그램 참여자</p>
+    <div class="detail-section">
+      <div class="detail-section-title">진행 현황</div>
+      <div class="detail-row"><span class="detail-label">전체 진행률</span><span class="detail-value" id="detailPct">40%</span></div>
+      <div class="prog-bar-full"><div class="prog-bar-fill" id="detailProgBar" style="width:40%"></div></div>
+      <div class="detail-row" style="margin-top:12px"><span class="detail-label">완료 강의</span><span class="detail-value" id="detailLec">2 / 5강</span></div>
+      <div class="detail-row"><span class="detail-label">미제출 과제</span><span class="detail-value" id="detailAssign">2건</span></div>
+      <div class="detail-row"><span class="detail-label">최근 접속</span><span class="detail-value">2025.04.02</span></div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">과제 제출 이력</div>
+      <div class="assignment-row"><span class="status-pill sp-done" style="flex-shrink:0">승인</span><span style="flex:1;font-size:13px">1강 — 자기 평가서 작성</span><span style="font-size:11px;color:var(--gray)">2025.03.20</span></div>
+      <div class="assignment-row"><span class="status-pill sp-late" style="flex-shrink:0">재제출</span><span style="flex:1;font-size:13px">2강 — PIP 초안 작성</span><span style="font-size:11px;color:var(--gray)">2025.03.28</span></div>
+      <div class="assignment-row"><span class="status-pill sp-pending" style="flex-shrink:0">미제출</span><span style="flex:1;font-size:13px">3강 — 목표 설정서 작성</span><span style="font-size:11px;color:var(--red)">D-5</span></div>
+    </div>
+    <button class="btn-full" onclick="alert('개인 보고서를 PDF로 내보냅니다.')">PDF 보고서 내보내기</button>
+  </div>
+</div>
+
+<!-- ── 참여자 추가 모달 ── -->
+<div class="overlay" id="addParticipantModal">
+  <div class="modal-box" style="max-width:440px">
+    <button class="modal-close" onclick="closeModal('addParticipantModal')">×</button>
+    <h2 class="modal-title">참여자 추가</h2>
+    <p class="modal-sub" style="font-size:13px;color:var(--gray);margin-bottom:20px">추가한 참여자에게 계정 발급 이메일이 자동으로 발송됩니다.</p>
+    <div class="ok-msg" id="addOk">✅ 참여자가 추가되었습니다. 계정 발급 이메일이 발송됩니다.</div>
+    <div class="err-msg" id="addErr"></div>
+    <div class="mf"><label>이름</label><input type="text" id="addName" placeholder="홍길동"/></div>
+    <div class="mf"><label>이메일</label><input type="email" id="addEmail" placeholder="hong@company.com"/></div>
+    <div class="mf"><label>부서 (선택)</label><input type="text" id="addDept" placeholder="영업팀"/></div>
+    <div class="mf">
+      <label>커리큘럼 배정</label>
+      <select id="addCurriculum">
+        <option>기본 PIP 커리큘럼 (5강)</option>
+        <option>단기 PIP 커리큘럼 (3강)</option>
+      </select>
+    </div>
+    <button class="btn-full" onclick="addParticipant()">참여자 추가 및 계정 발급</button>
+  </div>
+</div>
+
+<script>
+  const sectionTitles = { dashboard:'대시보드', participants:'참여자 관리', files:'파일 관리', report:'보고서', notice:'공지사항' };
+
+  function showSection(btn, id) {
+    document.querySelectorAll('[id^="section-"]').forEach(s => s.style.display = 'none');
+    document.getElementById('section-' + id).style.display = '';
+    document.getElementById('topbarTitle').textContent = sectionTitles[id];
+    document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+  }
+
+  function openModal(id)  { document.getElementById(id).classList.add('open'); document.body.style.overflow = 'hidden'; }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); document.body.style.overflow = ''; }
+  document.querySelectorAll('.overlay').forEach(el => {
+    el.addEventListener('click', e => { if(e.target===el){ el.classList.remove('open'); document.body.style.overflow=''; }});
+  });
+
+  function openDetail(name, pct, lec, assign) {
+    document.getElementById('detailName').textContent = name;
+    document.getElementById('detailPct').textContent = pct + '%';
+    document.getElementById('detailProgBar').style.width = pct + '%';
+    document.getElementById('detailLec').textContent = lec + ' / 5강';
+    document.getElementById('detailAssign').textContent = assign + '건';
+    document.getElementById('detailAssign').style.color = assign > 0 ? 'var(--yellow)' : 'var(--green)';
+    openModal('detailModal');
+  }
+
+  function addParticipant() {
+    const name  = document.getElementById('addName').value.trim();
+    const email = document.getElementById('addEmail').value.trim();
+    const err   = document.getElementById('addErr');
+    const ok    = document.getElementById('addOk');
+    if (!name || !email) { err.textContent = '이름과 이메일을 입력해주세요.'; err.style.display = 'block'; return; }
+    if (!email.includes('@')) { err.textContent = '올바른 이메일 형식을 입력해주세요.'; err.style.display = 'block'; return; }
+    err.style.display = 'none';
+    // TODO: Firebase 연동 — 계정 생성 및 이메일 발송
+    ok.style.display = 'block';
+    document.getElementById('addName').value = '';
+    document.getElementById('addEmail').value = '';
+    document.getElementById('addDept').value = '';
+    setTimeout(() => { ok.style.display = 'none'; closeModal('addParticipantModal'); }, 2000);
+  }
+
+  function downloadAll() {
+    alert('전체 파일을 ZIP으로 다운로드합니다.\n(실제 운영 시 Firebase Storage 연동 후 활성화됩니다.)');
+  }
+
+  function handleCompanyUpload(input) {
+    if (!input.files[0]) return;
+    alert(`"${input.files[0].name}" 파일이 업로드됩니다.\n(실제 운영 시 Firebase Storage 연동 후 활성화됩니다.)`);
+  }
+</script>
+</body>
+</html>
