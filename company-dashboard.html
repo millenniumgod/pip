@@ -171,8 +171,8 @@
     <div class="sidebar-logo-sub">성과향상 프로그램</div>
   </div>
   <div class="sidebar-user">
-    <div class="sidebar-company">(주)OO기업</div>
-    <div class="sidebar-user-name">김인사 · HR 담당자</div>
+    <div class="sidebar-company" id="sidebarCompany">(주)OO기업</div>
+    <div class="sidebar-user-name" id="sidebarName">김인사 · HR 담당자</div>
   </div>
   <nav class="sidebar-nav">
     <div class="nav-section-label">메인</div>
@@ -195,7 +195,7 @@
     </button>
   </nav>
   <div class="sidebar-bottom">
-    <button class="sidebar-logout" onclick="if(confirm('로그아웃 하시겠습니까?')) location.href='lecture-index.html'">로그아웃</button>
+    <button class="sidebar-logout" onclick="doLogout()">로그아웃</button>
   </div>
 </aside>
 
@@ -357,7 +357,7 @@
             <tbody>
               <tr>
                 <td class="td-name">홍길동</td>
-                <td style="color:var(--gray)">hong@oocompany.com</td>
+                <td style="color:var(--gray)"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="c6aea9a8a186a9a9a5a9abb6a7a8bfe8a5a9ab">[email&#160;protected]</a></td>
                 <td>2025.03.15</td>
                 <td><div class="prog-mini"><div class="prog-mini-fill" style="width:40%"></div></div>40%</td>
                 <td>2 / 5</td>
@@ -370,7 +370,7 @@
               </tr>
               <tr>
                 <td class="td-name">김철수</td>
-                <td style="color:var(--gray)">kim@oocompany.com</td>
+                <td style="color:var(--gray)"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="02696b6f426d6d616d6f72636c7b2c616d6f">[email&#160;protected]</a></td>
                 <td>2025.03.15</td>
                 <td><div class="prog-mini"><div class="prog-mini-fill" style="width:20%"></div></div>20%</td>
                 <td>1 / 5</td>
@@ -383,7 +383,7 @@
               </tr>
               <tr>
                 <td class="td-name">이영희</td>
-                <td style="color:var(--gray)">lee@oocompany.com</td>
+                <td style="color:var(--gray)"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="315d5454715e5e525e5c41505f481f525e5c">[email&#160;protected]</a></td>
                 <td>2025.03.15</td>
                 <td><div class="prog-mini"><div class="prog-mini-fill done" style="width:100%"></div></div>100%</td>
                 <td>5 / 5</td>
@@ -575,7 +575,7 @@
   </div>
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
   const sectionTitles = { dashboard:'대시보드', participants:'참여자 관리', files:'파일 관리', report:'보고서', notice:'공지사항' };
 
   function showSection(btn, id) {
@@ -615,17 +615,4 @@
     document.getElementById('addName').value = '';
     document.getElementById('addEmail').value = '';
     document.getElementById('addDept').value = '';
-    setTimeout(() => { ok.style.display = 'none'; closeModal('addParticipantModal'); }, 2000);
-  }
-
-  function downloadAll() {
-    alert('전체 파일을 ZIP으로 다운로드합니다.\n(실제 운영 시 Firebase Storage 연동 후 활성화됩니다.)');
-  }
-
-  function handleCompanyUpload(input) {
-    if (!input.files[0]) return;
-    alert(`"${input.files[0].name}" 파일이 업로드됩니다.\n(실제 운영 시 Firebase Storage 연동 후 활성화됩니다.)`);
-  }
-</script>
-</body>
-</html>
+    setTimeout(() => { ok.style.displ

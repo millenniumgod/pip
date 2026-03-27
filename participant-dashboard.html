@@ -193,8 +193,8 @@
   <div class="sidebar-user">
     <div class="sidebar-avatar">홍</div>
     <div>
-      <div class="sidebar-user-name">홍길동</div>
-      <div class="sidebar-user-role">참여자 · (주)OO기업</div>
+      <div class="sidebar-user-name" id="sidebarName">홍길동</div>
+      <div class="sidebar-user-role" id="sidebarRole">참여자</div>
     </div>
   </div>
   <nav class="sidebar-nav">
@@ -218,7 +218,7 @@
     </button>
   </nav>
   <div class="sidebar-bottom">
-    <button class="sidebar-logout" onclick="if(confirm('로그아웃 하시겠습니까?')) location.href='lecture-index.html'">로그아웃</button>
+    <button class="sidebar-logout" onclick="doLogout()">로그아웃</button>
   </div>
 </aside>
 
@@ -228,7 +228,7 @@
     <span class="topbar-title" id="topbarTitle">대시보드</span>
     <div class="topbar-right">
       <div class="topbar-notif">🔔<div class="notif-dot"></div></div>
-      <div style="font-size:12px;color:var(--gray)">홍길동 님</div>
+      <div style="font-size:12px;color:var(--gray)" id="topbarUser">홍길동 님</div>
     </div>
   </div>
 
@@ -663,6 +663,53 @@
       if (file) { selectedFile = file; const sizeMB=(file.size/1024/1024).toFixed(1); document.getElementById('uploadFileName').textContent=`✅ ${file.name} (${sizeMB}MB)`; }
     });
   }
+
+  /* ── 인증 체크 (페이지 로드 시) ── */
+  (function checkAuth() {
+    const raw = localStorage.getItem('pip_user');
+    if (!raw) { window.location.href = 'index.html'; return; }
+    const user = JSON.parse(raw);
+    const allowedRoles = {
+      'admin-dashboard.html':       ['admin'],
+      'company-dashboard.html':     ['company'],
+      'participant-dashboard.html': ['participant', 'observer'],
+    };
+    const page = location.pathname.split('/').pop();
+    const allowed = allowedRoles[page] || [];
+    if (allowed.length && !allowed.includes(user.role)) {
+      alert('접근 권한이 없습니다.');
+      window.location.href = 'index.html';
+    }
+  })();
+
+  /* ── 로그아웃 ── */
+  function doLogout() {
+    if (!confirm('로그아웃 하시겠습니까?')) return;
+    localStorage.removeItem('pip_user');
+    window.location.href = 'index.html';
+  }
+
+  /* ── 세션에서 사용자 정보 불러오기 ── */
+  function loadUserInfo() {
+    const raw = localStorage.getItem('pip_user');
+    if (!raw) return null;
+    return JSON.parse(raw);
+  }
+
+  // 사용자 정보 표시
+  window.addEventListener('DOMContentLoaded', () => {
+    const user = loadUserInfo();
+    if (!user) return;
+    const nameEl = document.getElementById('sidebarName');
+    const roleEl = document.getElementById('sidebarRole');
+    const topEl  = document.getElementById('topbarUser');
+    if (nameEl) nameEl.textContent = user.name;
+    if (roleEl) roleEl.textContent = '참여자 · ' + (user.company || '');
+    if (topEl)  topEl.textContent  = user.name + ' 님';
+    // avatar 이니셜
+    const av = document.querySelector('.sidebar-avatar');
+    if (av && user.name) av.textContent = user.name[0];
+  });
 </script>
 </body>
 </html>

@@ -460,18 +460,57 @@
   document.querySelectorAll('.overlay').forEach(el => {
     el.addEventListener('click', e => { if(e.target===el){ el.classList.remove('open'); document.body.style.overflow=''; }});
   });
+  /* ── 임시 계정 (Firebase 연동 전) ── */
+  const DEMO_ACCOUNTS = [
+    { email:'admin@cnlcg.co.kr',   pw:'cnl2024!',   role:'admin',       name:'노무법인 C&L' },
+    { email:'hr@company.com',      pw:'company123!', role:'company',     name:'김인사', company:'OO기업(주)' },
+    { email:'hong@company.com',    pw:'pip1234!',    role:'participant',  name:'홍길동', company:'OO기업(주)' },
+    { email:'observer@company.com',pw:'obs1234!',    role:'observer',    name:'이임원', company:'OO기업(주)' },
+  ];
+
+  const ROLE_REDIRECT = {
+    admin:       'admin-dashboard.html',
+    company:     'company-dashboard.html',
+    participant: 'participant-dashboard.html',
+    observer:    'participant-dashboard.html',
+  };
+
   function doLogin() {
-    const email = document.getElementById('loginEmail').value.trim();
+    const email = document.getElementById('loginEmail').value.trim().toLowerCase();
     const pw    = document.getElementById('loginPw').value;
     const err   = document.getElementById('loginErr');
     if (!email || !pw) { err.textContent='이메일과 비밀번호를 입력해주세요.'; err.style.display='block'; return; }
-    err.style.display = 'none';
-    // TODO: Firebase Auth 연동 후 역할별 대시보드로 이동
-    // admin       → /admin/dashboard.html
-    // company     → /company/dashboard.html
-    // participant → /participant/my.html
-    // observer    → /observer/view.html
-    alert(`[${selectedRole.toUpperCase()}] 로그인 기능은 Firebase 연동 후 활성화됩니다.`);
+
+    const btn = document.querySelector('#loginModal .btn-full');
+    btn.textContent = '로그인 중...'; btn.disabled = true;
+
+    // TODO: Firebase Auth 연동 시 아래 블록을 Firebase 코드로 교체
+    setTimeout(() => {
+      const account = DEMO_ACCOUNTS.find(a => a.email === email && a.pw === pw);
+      if (!account) {
+        err.textContent = '이메일 또는 비밀번호가 올바르지 않습니다.';
+        err.style.display = 'block';
+        btn.textContent = '로그인'; btn.disabled = false;
+        return;
+      }
+      // 역할이 선택한 역할과 일치하는지 확인
+      if (account.role !== selectedRole && !(selectedRole === 'observer' && account.role === 'observer')) {
+        err.textContent = '선택한 역할과 계정 정보가 일치하지 않습니다.';
+        err.style.display = 'block';
+        btn.textContent = '로그인'; btn.disabled = false;
+        return;
+      }
+      // 세션 저장
+      localStorage.setItem('pip_user', JSON.stringify({
+        email: account.email,
+        role:  account.role,
+        name:  account.name,
+        company: account.company || '',
+        loginAt: new Date().toISOString()
+      }));
+      // 역할별 대시보드로 이동
+      window.location.href = ROLE_REDIRECT[account.role];
+    }, 600);
   }
   function switchTab(btn, tabId) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
