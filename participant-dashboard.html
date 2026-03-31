@@ -576,38 +576,60 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+  import {
+    auth, db, storage, requireAuth, doLogout,
+    doc, getDoc, collection, getDocs, addDoc, query, where, orderBy,
+    ref, uploadBytes, getDownloadURL, serverTimestamp
+  } from './firebase-config.js';
+
+  let currentUser = null;
+
+  // ── 인증 체크 및 데이터 로드
+  window.addEventListener('DOMContentLoaded', async () => {
+    currentUser = await requireAuth(['participant', 'observer']);
+    if (!currentUser) return;
+
+    // 사용자 정보 표시
+    const nameEl = document.getElementById('sidebarName');
+    const roleEl = document.getElementById('sidebarRole');
+    const topEl  = document.getElementById('topbarUser');
+    const av     = document.querySelector('.sidebar-avatar');
+    if (nameEl) nameEl.textContent = currentUser.name || currentUser.email;
+    if (roleEl) roleEl.textContent = '참여자 · ' + (currentUser.company || '');
+    if (topEl)  topEl.textContent  = (currentUser.name || currentUser.email) + ' 님';
+    if (av && currentUser.name) av.textContent = currentUser.name[0];
+  });
+
+  // ── 섹션 전환
+  const sectionTitles = { dashboard:'대시보드', curriculum:'커리큘럼', assignment:'과제 제출', notice:'공지사항', files:'자료실' };
+  function showSection(btn, id) {
+    document.querySelectorAll('[id^="section-"]').forEach(s => s.style.display = 'none');
+    document.getElementById('section-' + id).style.display = '';
+    document.getElementById('topbarTitle').textContent = sectionTitles[id];
+    document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+  }
+
+  // ── 동영상 플레이어
   const lectures = {
     1: { title:'1강. 저성과자 개념 및 법적 기준 이해', meta:'32분 · 이상호 공인노무사', vimeoId:'824804225' },
     2: { title:'2강. 성과향상계획(PIP) 작성 방법',    meta:'41분 · 이상호 공인노무사', vimeoId:'824804225' },
     3: { title:'3강. 자기 개발 목표 설정 실습',       meta:'38분 · 이상호 공인노무사', vimeoId:'824804225' },
   };
-  let currentUploadLecture = null;
-  let selectedFile = null;
-
-  // ── 섹션 전환
-  const sectionTitles = { dashboard:'대시보드', curriculum:'커리큘럼', assignment:'과제 제출', notice:'공지사항', files:'자료실' };
-  function showSection(id) {
-    document.querySelectorAll('[id^="section-"]').forEach(s => s.style.display='none');
-    document.getElementById('section-' + id).style.display = '';
-    document.getElementById('topbarTitle').textContent = sectionTitles[id];
-    document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
-    event.currentTarget.classList.add('active');
-  }
-
-  // ── 동영상 플레이어
   function openPlayer(num) {
-    const lec = lectures[num];
-    if (!lec) return;
+    const lec = lectures[num]; if (!lec) return;
     document.getElementById('playerTitle').textContent = lec.title;
-    document.getElementById('playerMeta').textContent = lec.meta;
-    // Vimeo 임베드 (실제 운영 시 vimeoId를 실제 영상 ID로 교체)
+    document.getElementById('playerMeta').textContent  = lec.meta;
     document.getElementById('vimeoPlayer').src =
       `https://player.vimeo.com/video/${lec.vimeoId}?autoplay=1&title=0&byline=0&portrait=0`;
     openModal('playerModal');
   }
 
   // ── 과제 업로드
+  let currentUploadLecture = null;
+  let selectedFile = null;
+
   function openUpload(num) {
     currentUploadLecture = num;
     selectedFile = null;
@@ -617,7 +639,7 @@
     document.getElementById('uploadMemo').value = '';
     document.getElementById('uploadOk').style.display = 'none';
     document.getElementById('uploadTitle').textContent = num + '강 과제 제출';
-    document.getElementById('uploadSub').textContent = num + '강 과제 파일을 선택해주세요';
+    document.getElementById('uploadSub').textContent   = num + '강 과제 파일을 선택해주세요';
     openModal('uploadModal');
   }
 
@@ -629,16 +651,39 @@
     document.getElementById('uploadZone').style.background = '#f0f5ff';
   }
 
-  function submitAssignment() {
+  async function submitAssignment() {
     if (!selectedFile) { alert('파일을 선택해주세요.'); return; }
     const btn = document.getElementById('uploadSubmitBtn');
     btn.textContent = '제출 중...'; btn.disabled = true;
-    // TODO: 실제 파일 업로드 로직 (Firebase Storage 또는 GitHub API 연동)
-    setTimeout(() => {
+
+    try {
+      // Firebase Storage에 파일 업로드
+      const filePath = `assignments/${currentUser.uid}/${currentUploadLecture}강_${Date.now()}_${selectedFile.name}`;
+      const storageRef = ref(storage, filePath);
+      await uploadBytes(storageRef, selectedFile);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      // Firestore에 제출 기록 저장
+      await addDoc(collection(db, 'assignments'), {
+        participantUid:  currentUser.uid,
+        participantName: currentUser.name || currentUser.email,
+        company:         currentUser.company || '',
+        projectId:       currentUser.projectId || '',
+        lectureNum:      currentUploadLecture,
+        fileName:        selectedFile.name,
+        fileUrl:         downloadURL,
+        memo:            document.getElementById('uploadMemo').value,
+        status:          'pending',
+        submittedAt:     serverTimestamp(),
+      });
+
       document.getElementById('uploadOk').style.display = 'block';
       btn.textContent = '제출하기'; btn.disabled = false;
       setTimeout(() => closeModal('uploadModal'), 1800);
-    }, 1000);
+    } catch(e) {
+      alert('제출 중 오류가 발생했습니다: ' + e.message);
+      btn.textContent = '제출하기'; btn.disabled = false;
+    }
   }
 
   // ── 모달
@@ -649,10 +694,10 @@
     if (id === 'playerModal') document.getElementById('vimeoPlayer').src = 'about:blank';
   }
   document.querySelectorAll('.overlay').forEach(el => {
-    el.addEventListener('click', e => { if(e.target===el) { el.classList.remove('open'); document.body.style.overflow=''; if(el.id==='playerModal') document.getElementById('vimeoPlayer').src='about:blank'; }});
+    el.addEventListener('click', e => { if(e.target===el){ closeModal(el.id); }});
   });
 
-  // ── 드래그앤드롭
+  // 드래그앤드롭
   const zone = document.getElementById('uploadZone');
   if (zone) {
     zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor='var(--navy)'; zone.style.background='#f0f5ff'; });
@@ -664,52 +709,15 @@
     });
   }
 
-  /* ── 인증 체크 (페이지 로드 시) ── */
-  (function checkAuth() {
-    const raw = localStorage.getItem('pip_user');
-    if (!raw) { window.location.href = 'index.html'; return; }
-    const user = JSON.parse(raw);
-    const allowedRoles = {
-      'admin-dashboard.html':       ['admin'],
-      'company-dashboard.html':     ['company'],
-      'participant-dashboard.html': ['participant', 'observer'],
-    };
-    const page = location.pathname.split('/').pop();
-    const allowed = allowedRoles[page] || [];
-    if (allowed.length && !allowed.includes(user.role)) {
-      alert('접근 권한이 없습니다.');
-      window.location.href = 'index.html';
-    }
-  })();
-
-  /* ── 로그아웃 ── */
-  function doLogout() {
-    if (!confirm('로그아웃 하시겠습니까?')) return;
-    localStorage.removeItem('pip_user');
-    window.location.href = 'index.html';
-  }
-
-  /* ── 세션에서 사용자 정보 불러오기 ── */
-  function loadUserInfo() {
-    const raw = localStorage.getItem('pip_user');
-    if (!raw) return null;
-    return JSON.parse(raw);
-  }
-
-  // 사용자 정보 표시
-  window.addEventListener('DOMContentLoaded', () => {
-    const user = loadUserInfo();
-    if (!user) return;
-    const nameEl = document.getElementById('sidebarName');
-    const roleEl = document.getElementById('sidebarRole');
-    const topEl  = document.getElementById('topbarUser');
-    if (nameEl) nameEl.textContent = user.name;
-    if (roleEl) roleEl.textContent = '참여자 · ' + (user.company || '');
-    if (topEl)  topEl.textContent  = user.name + ' 님';
-    // avatar 이니셜
-    const av = document.querySelector('.sidebar-avatar');
-    if (av && user.name) av.textContent = user.name[0];
-  });
+  // 전역 함수 등록
+  window.showSection      = showSection;
+  window.openPlayer       = openPlayer;
+  window.openUpload       = openUpload;
+  window.handleFileSelect = handleFileSelect;
+  window.submitAssignment = submitAssignment;
+  window.openModal        = openModal;
+  window.closeModal       = closeModal;
+  window.doLogout         = doLogout;
 </script>
 </body>
 </html>
