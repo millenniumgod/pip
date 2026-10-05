@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CNL Works 교육센터</title>
+<link rel="icon" type="image/png" href="../assets/favicon.png">
+<link rel="preload" as="script" href="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js" crossorigin>
+<link rel="preload" as="script" href="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js" crossorigin>
+<link rel="preload" as="script" href="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js" crossorigin>
+<link rel="preload" as="script" href="https://www.gstatic.com/firebasejs/10.13.0/firebase-functions-compat.js" crossorigin>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="../assets/edu.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/" title="CNL Works 홈페이지"><img src="../assets/logo-symbol.png" alt=""><b>CNL Works</b><span>교육센터</span></a>
+    <div class="who hidden" id="who"><span id="who-email"></span><button class="small hidden" id="btn-mode">관리자 화면</button><button class="small" id="btn-logout">로그아웃</button></div>
+  </div>
+</header>
+
+<main><div class="wrap">
+
+<!-- ===== 진위 확인 (로그인 불필요) ===== -->
+<section id="v-verify" class="hidden">
+  <div class="verify-box">
+    <div class="page-h"><h1>수료증 진위 확인</h1><p>수료증 오른쪽 위의 수료번호를 입력하세요.</p></div>
+    <div class="card">
+      <label>수료번호<input id="vf-no" placeholder="CNLW-HG-2026-0001" autocomplete="off"></label>
+      <div class="row" style="margin-top:14px"><button class="primary" id="vf-btn">확인</button><a class="btn" href="#/">교육센터로</a></div>
+      <div id="vf-res"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 로그인 ===== -->
+<section id="v-auth" class="hidden">
+  <div class="auth">
+    <img class="logo" src="../assets/logo-full.png" alt="CNL Works">
+    <div class="card">
+      <div class="tabs2"><button id="t-login" class="on">로그인</button><button id="t-signup">회원가입</button></div>
+      <label>이메일<input type="email" id="a-email" autocomplete="email" placeholder="name@company.com"></label>
+      <label>비밀번호<input type="password" id="a-pw" autocomplete="current-password"></label>
+      <label class="row" id="a-remember-l" style="font-weight:500;margin-top:14px"><input type="checkbox" id="a-remember"> 이메일 주소 기억하기</label>
+      <div id="a-signup-extra" class="hidden">
+        <label>비밀번호 확인<input type="password" id="a-pw2" autocomplete="new-password"></label>
+        <p class="small-t muted" style="margin-top:6px">8자 이상, 영문과 숫자를 모두 포함해 주세요.</p>
+        <label class="row" style="font-weight:500;margin-top:14px"><input type="checkbox" id="a-agree"> <span><button class="link" data-legal="terms">이용약관</button>과 <button class="link" data-legal="policy">개인정보처리방침</button>에 동의합니다 (필수)</span></label>
+      </div>
+      <button class="primary" id="a-submit" style="width:100%;margin-top:18px">로그인</button>
+      <div class="sso">
+        <div class="sso-div"><span>또는</span></div>
+        <button class="sso-btn google" data-sso="google"><span class="sso-ico">G</span>Google로 계속하기</button>
+        <button class="sso-btn kakao hidden" data-sso="kakao"><span class="sso-ico k">K</span>카카오로 계속하기</button>
+        <button class="sso-btn naver hidden" data-sso="naver"><span class="sso-ico n">N</span>네이버로 계속하기</button>
+      </div>
+      <div class="row" style="justify-content:space-between;margin-top:10px"><button class="link small-t" id="a-reset">비밀번호를 잊으셨나요?</button><a class="small-t" href="#/verify">수료증 진위 확인</a></div>
+      <div class="msg" id="a-msg"></div>
+    </div>
+    <p class="legal"><button class="link" data-legal="terms">이용약관</button> · <button class="link" data-legal="policy"><b>개인정보처리방침</b></button></p>
+  </div>
+</section>
+
+<!-- ===== 시작: 교육 코드 / 개인 신청 ===== -->
+<section id="v-start" class="hidden">
+  <div class="page-h"><h1>교육 시작하기</h1><p>해당하는 방법을 선택하세요.</p></div>
+  <div class="choose">
+    <div class="card"><h3>교육 코드가 있어요</h3><p>회사에서 받은 교육 코드나 개인별 수강 코드를 입력하면 바로 수강할 수 있습니다.</p><button class="primary" data-go="join">교육 코드 입력</button></div>
+    <div class="card"><h3>개인으로 신청할게요</h3><p>재발방지 교육이나 조사관 과정을 직접 신청합니다. 확인 후 연락드리고, 승인되면 수강할 수 있습니다.</p><button data-go="apply">개인 신청</button></div>
+  </div>
+  <div class="card" id="hr-hint" style="margin-top:14px">
+    <p class="small-t muted">회사 교육 담당자이신가요? 담당자 화면은 등록된 이메일 인증 후 열립니다. <button class="link small-t" id="btn-verify-mail">인증 메일 보내기</button></p>
+    <div class="msg ok" id="vm-msg"></div>
+  </div>
+</section>
+
+<!-- ===== 교육 코드 입력 ===== -->
+<section id="v-join" class="hidden">
+  <div class="page-h"><h1>교육 코드 입력</h1><p>입력한 성명이 수료증에 그대로 표시됩니다.</p></div>
+  <div class="card" style="max-width:560px">
+    <label>교육 코드<input id="j-code" placeholder="ABCD-1234" autocomplete="off" style="text-transform:uppercase"></label>
+    <label>성명<input id="j-name" maxlength="30" autocomplete="name"></label>
+    <div class="grid2">
+      <label>사번 <span class="opt">(선택)</span><input id="j-emp" maxlength="30"></label>
+      <label>부서 <span class="opt">(선택)</span><input id="j-dept" maxlength="50"></label>
+    </div>
+    <div class="row" style="margin-top:18px"><button class="primary" id="j-submit">수강 시작</button><button data-go="back">취소</button></div>
+    <div class="msg" id="j-msg"></div>
+  </div>
+</section>
+
+<!-- ===== 개인 신청 ===== -->
+<section id="v-apply" class="hidden">
+  <div class="page-h"><h1 id="p-h1">재발방지 교육 개인 신청</h1><p id="p-lead">신청 내용은 담당 공인노무사만 확인하며, 소속 회사에 알리지 않습니다.</p></div>
+  <div class="card" style="max-width:640px">
+    <label>과정<select id="p-course"></select></label>
+    <div class="grid2">
+      <label>성명 (수료증 표시)<input id="p-name" maxlength="30" autocomplete="name"></label>
+      <label>연락처<input id="p-phone" type="tel" maxlength="30" placeholder="010-0000-0000" autocomplete="tel"></label>
+    </div>
+    <label>소속 <span class="opt">(선택, 수료증에는 표시하지 않음)</span><input id="p-org" maxlength="60"></label>
+    <label>신청 사유<select id="p-reason">
+      <option value="">선택하세요</option>
+      <option>징계 절차 진행 중(개선 노력 자료)</option>
+      <option>징계 후 회사의 교육 지시</option>
+      <option>기타</option>
+    </select></label>
+    <div id="p-mode-wrap">
+    <label>희망 방식</label>
+    <div class="row" style="margin-top:6px;gap:18px">
+      <label class="row" style="margin:0;font-weight:500"><input type="radio" name="p-mode" value="online" checked> 온라인</label>
+      <label class="row" style="margin:0;font-weight:500"><input type="radio" name="p-mode" value="offline"> 1:1 대면</label>
+    </div>
+    </div>
+    <div style="margin-top:18px;background:var(--bg);border-radius:10px;padding:14px 16px">
+      <p class="small-t muted"><b style="color:var(--ink)">개인정보 수집·이용 안내</b><br>노무법인 C&amp;L은 교육 신청 확인, 수강 관리, 수료증 발급을 위해 성명, 연락처, 이메일, 신청 사유(필수)와 소속(선택)을 수집하며, 수료증 발급일부터 3년간 보관한 뒤 파기합니다.<span id="p-consent-inv" class="hidden"> 수강 중 응시한 평가 결과와 작성한 조사보고서도 수료 심사를 위해 같은 기간 보관합니다.</span> 개인정보 수집·이용에 동의하지 않을 수 있으나, 동의하지 않으면 교육 신청을 할 수 없습니다.</p>
+      <label class="row" style="font-weight:500;margin-top:10px"><input type="checkbox" id="p-agree"> 동의합니다 (필수)</label>
+    </div>
+    <div class="row" style="margin-top:18px"><button class="primary" id="p-submit">신청하기</button><button data-go="back">취소</button></div>
+    <div class="msg" id="p-msg"></div>
+  </div>
+</section>
+
+<!-- ===== 내 교육 ===== -->
+<section id="v-home" class="hidden">
+  <div class="page-h"><h1>내 교육</h1><p id="home-sub"></p></div>
+  <div id="enr-list"></div>
+  <div class="row" style="margin-top:16px"><button data-go="join">교육 코드 입력</button><button data-go="apply">개인 신청</button></div>
+</section>
+
+<!-- ===== 강의 ===== -->
+<section id="v-course" class="hidden">
+  <div class="row" style="justify-content:space-between;margin-bottom:14px"><button data-go="home">← 내 교육</button><span class="badge in" id="c-badge"></span></div>
+  <div class="page-h"><h1 id="c-title"></h1><p id="c-desc">모든 영상을 끝까지 시청하면 수료증이 발급됩니다. 배속 재생한 시간은 인정되지 않습니다.</p></div>
+  <div class="player"><iframe id="c-frame" allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture" allowfullscreen></iframe></div>
+  <p class="pstat" id="c-stat"></p>
+  <div class="vdone hidden" id="c-vdone">
+    <p id="c-vdone-text">이 강의를 끝까지 들었습니다.</p>
+    <div class="row"><button id="c-replay">다시 보기</button><button class="primary" id="c-next">다음 강의 보기</button></div>
+  </div>
+  <div class="vlist" id="c-videos"></div>
+  <div class="card hidden" id="c-inv" style="margin-top:16px">
+    <h3 style="font-size:17px">수료 절차</h3>
+    <p class="small-t muted" style="margin-top:4px">네 단계를 모두 마치면 수료증이 발급됩니다.</p>
+    <ol class="steps" id="inv-steps"></ol>
+    <div class="inv-body" id="inv-body"></div>
+    <div class="msg" id="inv-msg"></div>
+  </div>
+  <div class="card" id="c-cert-card" style="margin-top:16px">
+    <div class="row" style="justify-content:space-between"><p id="c-done-text">모든 영상을 시청하면 수료증을 받을 수 있습니다.</p><button class="primary" id="c-cert" disabled>수료증 받기</button></div>
+    <div class="msg" id="c-msg"></div>
+  </div>
+</section>
+
+<!-- ===== 수료증 보기 ===== -->
+<section id="v-cert" class="hidden">
+  <div class="row" style="justify-content:space-between;margin-bottom:16px"><button id="cv-back">← 돌아가기</button><button class="primary" id="cv-print">인쇄 · PDF 저장</button></div>
+  <div class="cert-wrap" id="cv-box"></div>
+  <p class="small-t muted" style="text-align:center;margin-top:12px">인쇄 창에서 '대상'을 'PDF로 저장'으로 바꾸면 파일로 받을 수 있습니다.</p>
+</section>
+
+<!-- ===== 회사 담당자 ===== -->
+<section id="v-hr" class="hidden">
+  <div class="page-h"><h1>교육 현황</h1><p>우리 회사 직원의 수강과 수료 현황입니다.</p></div>
+  <div class="row" style="margin-bottom:14px"><select id="hr-org" style="max-width:320px;margin:0"></select><button id="hr-csv">엑셀(CSV) 받기</button><button id="hr-print">수료증 전체 출력</button></div>
+  <div class="card"><div class="row" id="hr-stats" style="gap:18px"></div></div>
+  <div class="card"><h3 style="font-size:16px;margin-bottom:8px">온라인 수강</h3><div class="tbl" id="hr-enr"></div></div>
+  <div class="card"><h3 style="font-size:16px;margin-bottom:8px">집합교육 수료</h3><div class="tbl" id="hr-off"></div></div>
+</section>
+
+<!-- ===== 메인 관리자 ===== -->
+<section id="v-admin" class="hidden">
+  <div class="sys-nav">
+    <span class="sys-now">교육센터 관리</span>
+    <a class="sys-go" href="/pip/">PIP 관리 (고객사, 대상자, 과정 템플릿) →</a>
+  </div>
+  <div class="page-h"><h1>교육센터 관리</h1><p>직장 내 괴롭힘·성희롱 교육, 조사관 과정, 개인 결제를 관리합니다.</p></div>
+  <div class="atabs" id="atabs">
+    <button data-tab="contracts" class="on">계약 신청</button>
+    <button data-tab="enroll">신청·수강</button>
+    <button data-tab="reports">보고서 검토</button>
+    <button data-tab="orgs">회사·교육 코드</button>
+    <button data-tab="invites">지정 대상자</button>
+    <button data-tab="offline">집합교육 수료</button>
+    <button data-tab="certs">수료증</button>
+    <button data-tab="courses">과정</button>
+    <button data-tab="orders">결제 주문</button>
+    <button data-tab="qna">Q&amp;A</button>
+  </div>
+
+  <div data-panel="contracts">
+    <div class="row" style="margin-bottom:12px"><select id="ct-filter" style="max-width:220px;margin:0"><option value="new">새 신청</option><option value="approved">코드 발급 완료</option><option value="closed">종료</option><option value="all">전체</option></select><button id="ct-reload">새로고침</button></div>
+    <div id="ct-list"></div>
+  </div>
+
+  <div data-panel="orders" class="hidden">
+    <div class="row" style="margin-bottom:12px"><select id="or-filter" style="max-width:220px;margin:0"><option value="paid">결제 완료</option><option value="ready">결제 진행 중</option><option value="failed">실패·취소</option><option value="all">전체</option></select><button id="or-reload">새로고침</button><button id="or-csv">엑셀(CSV) 받기</button></div>
+    <div class="card"><div class="tbl" id="or-list"></div></div>
+  </div>
+
+  <div data-panel="qna" class="hidden">
+    <div class="card" style="margin-bottom:14px">
+      <h3 style="font-size:16px" id="an-form-title">공지 작성</h3>
+      <p class="small-t muted" style="margin-top:4px">공지는 홈페이지 Q&amp;A 목록 맨 위에 고정됩니다.</p>
+      <label>제목<input id="an-title" maxlength="80"></label>
+      <label>내용 <span class="opt">(빈 줄로 문단을 나누고, "## "로 시작하는 줄은 소제목으로 표시됩니다)</span><textarea id="an-body" rows="10"></textarea></label>
+      <div class="row" style="margin-top:12px"><button class="primary" id="an-save">공지 등록</button><button id="an-new">새로 작성</button></div>
+      <div class="msg" id="an-msg"></div>
+      <div class="tbl" id="an-list" style="margin-top:10px"></div>
+    </div>
+    <div class="row" style="margin-bottom:12px"><select id="aq-filter" style="max-width:220px;margin:0"><option value="open">답변 대기</option><option value="answered">답변 완료</option><option value="all">전체</option></select><button id="aq-reload">새로고침</button></div>
+    <div id="aq-list"></div>
+  </div>
+
+  <div data-panel="enroll" class="hidden">
+    <div class="row" style="margin-bottom:12px"><select id="ae-filter" style="max-width:220px;margin:0"><option value="pending">승인 대기</option><option value="active">수강 중</option><option value="done">수료</option><option value="all">전체</option></select><button id="ae-reload">새로고침</button></div>
+    <div class="card"><div class="tbl" id="ae-list"></div></div>
+  </div>
+
+  <div data-panel="reports" class="hidden">
+    <div class="row" style="margin-bottom:12px"><select id="ar-filter" style="max-width:220px;margin:0"><option value="submitted">검토 대기</option><option value="revision">보완 요청 중</option><option value="approved">승인</option><option value="all">전체</option></select><button id="ar-reload">새로고침</button></div>
+    <div class="card"><div class="tbl" id="ar-list"></div></div>
+    <div class="card hidden" id="ar-view"></div>
+  </div>
+
+  <div data-panel="orgs" class="hidden">
+    <div class="card">
+      <h3 style="font-size:16px">회사 등록</h3>
+      <div class="grid2">
+        <label>회사명<input id="ao-name" maxlength="60"></label>
+        <label>과정 (일반 사내교육)<select id="ao-course"></select></label>
+      </div>
+      <label>담당자 이메일 <span class="opt">(여러 명은 쉼표로 구분, 이 이메일로 가입·인증하면 담당자 화면이 열립니다)</span><input id="ao-hr" placeholder="hr@company.com"></label>
+      <div class="row" style="margin-top:14px"><button class="primary" id="ao-add">등록하고 교육 코드 만들기</button></div>
+      <div class="msg" id="ao-msg"></div>
+    </div>
+    <div class="card"><div class="tbl" id="ao-list"></div></div>
+  </div>
+
+  <div data-panel="invites" class="hidden">
+    <div class="card">
+      <h3 style="font-size:16px">재발방지·조사관 과정 대상자 지정</h3>
+      <p class="small-t muted" style="margin-top:4px">회사가 지정한 대상자에게 개인별 1회용 수강 코드를 만듭니다.</p>
+      <div class="grid2">
+        <label>과정<select id="ai-course"></select></label>
+        <label>회사 <span class="opt">(선택)</span><select id="ai-org"></select></label>
+        <label>대상자 성명<input id="ai-name" maxlength="30"></label>
+        <label>방식<select id="ai-mode"><option value="online">온라인</option><option value="offline">1:1 대면</option></select></label>
+      </div>
+      <div class="row" style="margin-top:14px"><button class="primary" id="ai-add">수강 코드 만들기</button></div>
+      <div class="msg" id="ai-msg"></div>
+    </div>
+    <div class="card"><div class="tbl" id="ai-list"></div></div>
+  </div>
+
+  <div data-panel="offline" class="hidden">
+    <div class="card">
+      <h3 style="font-size:16px">집합교육 수료 처리</h3>
+      <p class="small-t muted" style="margin-top:4px">현장 교육에 참석한 사람의 명단으로 수료증을 일괄 발급합니다.</p>
+      <div class="grid2">
+        <label>과정<select id="af-course"></select></label>
+        <label>회사<select id="af-org"></select></label>
+        <label>교육일<input type="date" id="af-date"></label>
+        <label>장소 <span class="opt">(선택)</span><input id="af-place" maxlength="60"></label>
+      </div>
+      <label id="af-orgname-l" class="hidden">회사명 직접 입력<input id="af-orgname" maxlength="60"></label>
+      <label>수료자 명단 <span class="opt">(한 줄에 한 명: 성명, 사번, 부서 — 사번·부서는 생략 가능, 엑셀에서 복사해 붙여 넣어도 됩니다)</span><textarea id="af-people" rows="8" placeholder="홍길동, 2024001, 인사팀&#10;김철수"></textarea></label>
+      <div class="row" style="margin-top:14px"><button class="primary" id="af-issue">수료증 발급</button><span class="small-t muted" id="af-count"></span></div>
+      <div class="msg" id="af-msg"></div>
+    </div>
+  </div>
+
+  <div data-panel="certs" class="hidden">
+    <div class="row" style="margin-bottom:12px"><input id="ac-q" placeholder="이름, 수료번호, 회사명으로 찾기" style="max-width:320px;margin:0"><button id="ac-reload">새로고침</button></div>
+    <div class="card"><div class="tbl" id="ac-list"></div></div>
+  </div>
+
+  <div data-panel="courses" class="hidden">
+    <div class="card">
+      <h3 style="font-size:16px" id="ac-form-title">과정 추가</h3>
+      <div class="grid2">
+        <label>과정명<input id="cc-title" maxlength="60" placeholder="직장 내 괴롭힘 예방교육"></label>
+        <label>수료증 과정명<input id="cc-cert" maxlength="60" placeholder="비우면 과정명과 같음"></label>
+        <label>어떤 상품인가요?<select id="cc-product">
+          <option value="harassment|general">직장 내 괴롭힘 예방교육 (기업 계약)</option>
+          <option value="harassment|offender">직장 내 괴롭힘 재발방지 교육 (개인 결제)</option>
+          <option value="harassment|investigator">직장 내 괴롭힘 조사관 과정 (개인 결제)</option>
+          <option value="sexual|general">직장 내 성희롱 예방교육 (기업 계약)</option>
+          <option value="sexual|offender">직장 내 성희롱 재발방지 교육 (개인 결제)</option>
+          <option value="sexual|investigator">직장 내 성희롱 조사관 과정 (개인 결제)</option>
+        </select></label>
+        <label>교육 시간 표기<input id="cc-hours" maxlength="20" placeholder="1시간"></label>
+        <label>개인 수강 가격 <span class="opt">(원, 부가세 포함)</span><input id="cc-price" type="number" min="0" step="1000" placeholder="예: 150000"></label>
+        <div>
+          <label class="row" style="font-weight:500;margin-top:38px"><input type="checkbox" id="cc-active" checked> 운영 중</label>
+          <label class="row" style="font-weight:500;margin-top:8px"><input type="checkbox" id="cc-apply" checked> 개인 신청 받기 (재발방지·조사관 과정)</label>
+          <label class="row" style="font-weight:500;margin-top:8px"><input type="checkbox" id="cc-sample"> 첫 강의를 샘플로 공개 (결제 전에도 볼 수 있음)</label>
+        </div>
+      </div>
+      <div class="sell-box" id="cc-sell"></div>
+      <div class="up-box">
+        <div class="row" style="justify-content:space-between">
+          <div><b style="color:var(--ink);font-size:15px">강의 영상 올리기</b><p class="small-t muted" style="margin-top:2px">영상 파일을 고르면 올라가고, 아래 목록에 자동으로 추가됩니다. 여러 개를 이어서 올릴 수 있습니다.</p></div>
+          <label class="file-btn">영상 파일 선택<input type="file" id="cc-file" accept="video/*" hidden></label>
+        </div>
+        <div id="cc-up-bar" class="up-bar hidden"><div id="cc-up-fill"></div></div>
+        <p class="small-t" id="cc-up-status" style="margin-top:8px"></p>
+      </div>
+      <div class="vlist-head"><b>강의 목록</b><span class="small-t muted">제목을 고치고, 화살표로 순서를 바꿀 수 있습니다. 삭제할 때 올린 영상 파일까지 지울지 물어보며, 실제 삭제는 저장할 때 이루어집니다.</span></div>
+      <div id="cc-vlist" class="vlist-edit"></div>
+      <div class="row" style="margin-top:8px"><button class="small" id="cc-fetch-len">영상 길이 다시 불러오기</button><span class="small-t muted" id="cc-len-note"></span></div>
+      <div id="cc-inv" class="hidden">
+        <label>합격 점수 <span class="opt">(100점 만점)</span><input id="cc-pass" type="number" min="1" max="100" value="70" style="max-width:140px;display:block"></label>
+        <label>평가 문항 <span class="opt">(문항 사이는 빈 줄로 띄웁니다. 첫 줄은 문제, 보기는 "-"로, 정답 보기는 "*"로 시작)</span><textarea id="cc-quiz" rows="12" placeholder="괴롭힘 신고를 받은 사용자가 지체 없이 해야 하는 조치는?&#10;- 행위자에 대한 즉시 징계&#10;* 객관적인 사실 확인 조사&#10;- 신고인과 행위자의 대질&#10;&#10;괴롭힘 발생 사실이 확인된 경우 사용자가 피해근로자의 요청에 따라 해야 하는 조치가 아닌 것은?&#10;- 근무장소 변경&#10;- 배치전환&#10;* 피해근로자의 해고"></textarea></label>
+        <p class="small-t muted" id="cc-quiz-count" style="margin-top:6px"></p>
+        <label>모의사건 자료 <span class="opt">(사건 개요, 신고서, 면담 녹취 등 — 이 과정을 수강 중인 사람만 볼 수 있습니다)</span><textarea id="cc-case" rows="12"></textarea></label>
+      </div>
+      <div class="row" style="margin-top:14px"><button class="primary" id="cc-save">저장</button><button id="cc-new">새로 작성</button></div>
+      <div class="msg" id="cc-msg"></div>
+    </div>
+    <div class="card"><div class="tbl" id="cc-list"></div></div>
+  </div>
+</section>
+
+</div></main>
+
+<div class="modal hidden" id="modal"><div class="card"><div class="row" style="justify-content:space-between"><h3 id="m-title" style="font-size:18px"></h3><button class="small" id="m-close">닫기</button></div><pre id="m-body"></pre></div></div>
+<div id="print-area"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-functions-compat.js"></script>
+<script src="../assets/edu.js"></script>
+</body>
+</html>

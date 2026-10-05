@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>로그인 중… | CNL Works</title>
+<meta name="robots" content="noindex">
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f4f5f9;
+       font-family:"Apple SD Gothic Neo","Malgun Gothic",-apple-system,BlinkMacSystemFont,sans-serif;color:#3b3f52;padding:20px}
+  .box{text-align:center;max-width:420px}
+  img{width:140px;height:auto;margin-bottom:22px}
+  p{font-size:15px;line-height:1.7;margin:0}
+  .err{color:#b4361f}
+  a{display:inline-block;margin-top:18px;font-size:14px;font-weight:600;color:#3d4aaf;text-decoration:none;
+    border:1px solid #dfe1ea;background:#fff;border-radius:8px;padding:10px 18px}
+</style>
+</head>
+<body>
+<div class="box">
+  <img src="../assets/logo-full.png" alt="CNL Works">
+  <p id="msg">로그인 중입니다…</p>
+  <a id="back" href="/edu/" hidden>교육센터로 돌아가기</a>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script>
+// 네이버·카카오 로그인 창에서 돌아오는 자리입니다.
+// 받은 인증 코드를 서버로 보내 Firebase 로그인 토큰을 받고, 원래 보던 화면으로 돌아갑니다.
+firebase.initializeApp({
+  apiKey: "AIzaSyCDRIl6YcV8vAmZ6UMmGuXuWnQ89Gce2ZQ",
+  authDomain: "pip-growth-program.firebaseapp.com",
+  projectId: "pip-growth-program",
+  storageBucket: "pip-growth-program.firebasestorage.app",
+  messagingSenderId: "385712593094",
+  appId: "1:385712593094:web:0434767f58485462081fc7"
+});
+
+(async () => {
+  const msg = document.getElementById('msg');
+  const back = document.getElementById('back');
+  const q = new URLSearchParams(location.search);
+  const fail = (t) => { msg.textContent = t; msg.className = 'err'; back.hidden = false; };
+  const provider = sessionStorage.getItem('cnlworks.sso.provider') || '';
+  const returnTo = sessionStorage.getItem('cnlworks.sso.return') || '/edu/';
+  back.href = returnTo;
+
+  if (q.get('error')) return fail('로그인이 취소되었습니다.');
+  const code = q.get('code');
+  if (!code || !provider) return fail('로그인 정보를 확인하지 못했습니다. 다시 시도해 주세요.');
+
+  try {
+    const r = await fetch('/api/social', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'login', provider, code, state: q.get('state') || '',
+        redirectUri: location.origin + '/auth/' })
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) throw new Error(j.message || '로그인에 실패했습니다.');
+    await firebase.auth().signInWithCustomToken(j.customToken);
+    sessionStorage.removeItem('cnlworks.sso.provider');
+    sessionStorage.removeItem('cnlworks.sso.return');
+    location.replace(returnTo);
+  } catch (e) {
+    fail(e.message || '로그인에 실패했습니다.');
+  }
+})();
+</script>
+</body>
+</html>
