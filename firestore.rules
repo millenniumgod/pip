@@ -1,0 +1,600 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 역할: admin(메인 관리자) / client_hr(회사 관리자) / trainee(수강생)
+    function isSignedIn() { return request.auth != null; }
+    function me() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function myRole() { return me().role; }
+    function myCompanyId() { return me().companyId; }
+    function isSelf(uid) { return isSignedIn() && request.auth.uid == uid; }
+    function isAdmin() { return isSignedIn() && myRole() == 'admin'; }
+    function isHrForCompany(companyId) {
+      return isSignedIn() && companyId != null && myRole() == 'client_hr' && myCompanyId() == companyId;
+    }
+    function companyOf(uid) { return get(/databases/$(database)/documents/users/$(uid)).data.companyId; }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+    function invite(code) { return get(/databases/$(database)/documents/invites/$(code)).data; }
+    function inviteAfter(code) { return getAfter(/databases/$(database)/documents/invites/$(code)).data; }
+
+    // ---------- 초대 코드 ----------
+    // invites/{코드}: { companyId, companyName, type, active, createdAt, createdBy?, inviteeName?, usedBy?, usedAt? }
+    // type: 'trainee'(회사 공용 수강생 코드, 계속 사용) / 'trainee_single'(개인별 1회용, 이메일 지정)
+    //       / 'manager'(1회용 회사 관리자 코드)
+    // - 가입 전 코드 확인을 위해 '코드를 정확히 아는 경우'에만 단건 조회 허용
+    // - 발급·조회·취소는 메인 관리자만 (회사 관리자는 진도 열람 전용)
+    // - 개인별 수강생 링크(trainee_single)는 inviteeEmail로 지정된 이메일로만 가입 가능
+    function isSingleUse(t) { return t in ['manager', 'trainee_single']; }
+
+    function claimInvite(code) {
+      let o = resource.data;
+      let d = request.resource.data;
+      return isSignedIn()
+        && isSingleUse(o.type) && o.active == true && o.get('usedBy', null) == null
+        && d.diff(o).affectedKeys().hasOnly(['usedBy', 'usedAt', 'active'])
+        && d.usedBy == request.auth.uid && d.usedAt == request.time && d.active == false
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.inviteCode == code;
+    }
+
+    match /invites/{code} {
+      allow get: if true;
+      allow list, create, delete: if isAdmin();
+      allow update: if claimInvite(code) || isAdmin();
+    }
+
+    // ---------- 수강생 명단 (이메일 기반) ----------
+    // pending/{이메일(소문자)}: 메인 관리자가 회사별로 등록. 해당 이메일로 가입하고 '이메일 인증을 마친' 본인만
+    // 자기 문서를 조회·사용할 수 있음 → 다른 사람이 '누가 대상자인지' 조회하거나 남의 주소로 가입해 연결하는 것 차단
+    // 회사 메일이 인증 메일을 막는 경우를 위해, 메인 관리자가 승인(approvedUid)한 본인도 같은 권한을 가짐
+    function myVerifiedEmail() {
+      return request.auth.token.email_verified == true ? request.auth.token.email.lower() : '';
+    }
+    function myEmail() { return request.auth.token.email.lower(); }
+    function mayUsePending(email, pdata) {
+      return isSignedIn() && (myVerifiedEmail() == email
+        || (myEmail() == email && pdata.get('approvedUid', null) == request.auth.uid));
+    }
+    function claimPending(email) {
+      let o = resource.data;
+      let d = request.resource.data;
+      return mayUsePending(email, o)
+        && o.active == true && o.get('usedBy', null) == null
+        && d.diff(o).affectedKeys().hasOnly(['usedBy', 'usedAt', 'active'])
+        && d.usedBy == request.auth.uid && d.usedAt == request.time && d.active == false
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == o.companyId;
+    }
+    match /pending/{email} {
+      allow get: if mayUsePending(email, resource.data) || isAdmin();
+      allow list, create, delete: if isAdmin();
+      allow update: if claimPending(email) || isAdmin();
+    }
+
+    // ---------- 사용자 ----------
+    // - 가입: ① 초대 코드가 가리키는 회사·역할 그대로, 또는 ② 이메일 인증 후 수강생 명단(pending)과 일치할 때만 생성
+    //   (메인 관리자 계정은 콘솔에서 지정)
+    // - 본인: 이름만 수정 가능. 단, 회사 미지정 상태의 기존 수강생은 수강생 코드로 1회 회사 지정 가능
+    // - 역할·소속 변경은 메인 관리자만
+    function validRosterSignup(d) {
+      let p = getAfter(/databases/$(database)/documents/pending/$(myEmail())).data;
+      let verified = request.auth.token.email_verified == true;
+      return d.inviteEmail == myEmail()
+        // 가입 경로: 이메일 인증(email) 또는 관리자 승인(approval) — 실제 상태와 일치해야 함
+        && (verified ? d.get('joinVia', 'email') == 'email'
+                     : (d.get('joinVia', '') == 'approval' && p.get('approvedUid', null) == request.auth.uid))
+        && d.get('approvedAt', null) == (d.get('joinVia', 'email') == 'approval' ? p.get('approvedAt', null) : null)
+        && d.role == 'trainee' && d.companyId == p.companyId && p.usedBy == request.auth.uid
+        && d.get('rosteredAt', null) == p.createdAt   // 명단 등록일시는 명단 원본 값 그대로만
+        && d.get('trackId', null) == p.get('trackId', null);  // 배정 과정도 명단에 지정된 그대로만
+    }
+
+    function validSignup(d) {
+      let inv = inviteAfter(d.inviteCode);
+      return inv.companyId == d.companyId && (
+        (inv.type == 'trainee' && inv.active == true && d.role == 'trainee')
+        || (inv.type == 'trainee_single' && d.role == 'trainee' && inv.get('usedBy', null) == request.auth.uid
+            && d.email.lower() == inv.inviteeEmail)
+        || (inv.type == 'manager' && d.role == 'client_hr' && inv.get('usedBy', null) == request.auth.uid)
+      );
+    }
+
+    function validJoinByCode(uid) {
+      let d = request.resource.data;
+      let inv = invite(d.inviteCode);
+      return isSelf(uid)
+        && changed().hasOnly(['companyId', 'inviteCode'])
+        && resource.data.role == 'trainee'
+        && resource.data.get('companyId', null) == null
+        && inv.type == 'trainee' && inv.active == true && inv.companyId == d.companyId;
+    }
+
+    match /users/{uid} {
+      allow read: if isSelf(uid) || isAdmin() || isHrForCompany(resource.data.companyId);
+      allow create: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(['name', 'email', 'role', 'companyId', 'inviteCode', 'inviteEmail', 'rosteredAt', 'trackId', 'joinVia', 'approvedAt', 'createdAt'])
+        && request.resource.data.email == request.auth.token.email
+        && (('inviteCode' in request.resource.data && validSignup(request.resource.data))
+            || ('inviteEmail' in request.resource.data && validRosterSignup(request.resource.data)));
+      allow update: if isAdmin()
+        || (isSelf(uid) && changed().hasOnly(['name']))
+        // 회원 탈퇴: 본인이 탈퇴 상태·일시·사유만 기록 (되돌리기는 메인 관리자만)
+        || (isSelf(uid) && changed().hasOnly(['status', 'withdrawnAt', 'withdrawReason'])
+            && resource.data.role in ['trainee', 'client_hr']
+            && request.resource.data.status == 'withdrawn'
+            && request.resource.data.withdrawnAt == request.time
+            && (!('withdrawReason' in request.resource.data) || (request.resource.data.withdrawReason is string && request.resource.data.withdrawReason.size() <= 200)))
+        || validJoinByCode(uid);
+      allow delete: if false;
+    }
+
+    // ---------- 회사 ----------
+    // 메인 관리자는 전체, 그 외에는 자기 소속 회사 문서만 읽기 (다른 고객사 목록 노출 방지)
+    match /companies/{companyId} {
+      allow read: if isAdmin() || (isSignedIn() && myCompanyId() == companyId);
+      allow write: if isAdmin();
+    }
+
+    // ---------- 강의 보관함 ----------
+    // 등록·수정·삭제는 메인 관리자만 (회사 관리자는 열람만)
+    match /courses/{courseId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // ---------- 과제 ----------
+    // assignments/{aid}: { trackId, week, title, guide, required, visibleToHr, createdAt } — 메인 관리자만 등록
+    // submissions/{uid}_{aid}: { uid, aid, trackId, companyId, text, status, updatedAt, submittedAt, lastVersion }
+    //   · 임시저장(draft)은 본인이 자유롭게 덮어쓰고, 제출(submitted)할 때마다 versions/{회차}에 원본이 남음(수정·삭제 불가)
+    //   · 회사 관리자는 과제의 visibleToHr가 false가 아닐 때만 열람
+    // submissions/{sid}/feedback/{fid}: 메인 관리자가 남기는 피드백 (수정·삭제 불가)
+    match /assignments/{aid} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    function asgVisibleToHr(aid) {
+      return get(/databases/$(database)/documents/assignments/$(aid)).data.get('visibleToHr', true) != false;
+    }
+    function canReadSubmission(d) {
+      return isAdmin()
+        || (isSignedIn() && d.uid == request.auth.uid)
+        || (isHrForCompany(d.companyId) && asgVisibleToHr(d.aid));
+    }
+    function subKeysOk() {
+      return request.resource.data.keys().hasOnly(
+        ['uid', 'aid', 'trackId', 'companyId', 'text', 'status', 'updatedAt', 'submittedAt', 'lastVersion']);
+    }
+    function textOk(t) { return t is string && t.size() <= 20000; }
+
+    match /submissions/{sid} {
+      allow read: if canReadSubmission(resource.data);
+      allow create: if isSignedIn()
+        && sid == request.auth.uid + '_' + request.resource.data.aid
+        && subKeysOk()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.companyId == myCompanyId()
+        && textOk(request.resource.data.text)
+        && request.resource.data.updatedAt == request.time
+        && (
+          (request.resource.data.status == 'draft' && request.resource.data.get('lastVersion', 0) == 0)
+          || (request.resource.data.status == 'submitted'
+              && request.resource.data.lastVersion == 1
+              && request.resource.data.submittedAt == request.time
+              && existsAfter(/databases/$(database)/documents/submissions/$(sid)/versions/1))
+        );
+      allow update: if isSignedIn() && resource.data.uid == request.auth.uid
+        && subKeysOk()
+        && !changed().hasAny(['uid', 'aid', 'trackId', 'companyId'])
+        && textOk(request.resource.data.text)
+        && request.resource.data.updatedAt == request.time
+        && (
+          // 임시저장: 아직 제출한 적 없을 때만
+          (request.resource.data.status == 'draft'
+            && resource.data.status == 'draft'
+            && request.resource.data.get('lastVersion', 0) == resource.data.get('lastVersion', 0))
+          // 제출(첫 제출·재제출): 원본이 versions에 함께 남아야 함
+          || (request.resource.data.status == 'submitted'
+            && request.resource.data.lastVersion == resource.data.get('lastVersion', 0) + 1
+            && request.resource.data.submittedAt == request.time
+            && existsAfter(/databases/$(database)/documents/submissions/$(sid)/versions/$(string(request.resource.data.lastVersion))))
+        );
+      allow delete: if false;
+
+      match /versions/{n} {
+        allow read: if canReadSubmission(get(/databases/$(database)/documents/submissions/$(sid)).data);
+        allow create: if isSignedIn() && sid.split('_')[0] == request.auth.uid
+          && request.resource.data.keys().hasOnly(['text', 'at', 'n'])
+          && request.resource.data.at == request.time
+          && string(request.resource.data.n) == n
+          && textOk(request.resource.data.text);
+        allow update, delete: if false;
+      }
+
+      match /feedback/{fid} {
+        allow read: if canReadSubmission(get(/databases/$(database)/documents/submissions/$(sid)).data);
+        allow create: if isAdmin()
+          && request.resource.data.keys().hasOnly(['text', 'by', 'byName', 'at'])
+          && request.resource.data.by == request.auth.uid
+          && request.resource.data.at == request.time
+          && textOk(request.resource.data.text);
+        allow update, delete: if false;
+      }
+    }
+
+    // ---------- 퀴즈 ----------
+    // quizzes/{courseId}: 문항·보기·합격기준·재응시 간격 (정답 없음) — 로그인한 사람 누구나 조회
+    // quizKeys/{courseId}: 정답(보기 번호 목록) — 메인 관리자만 조회·수정. 채점은 이 규칙이 get()으로 대조
+    // quizState/{uid}_{courseId}: 응시 횟수·마지막 응시 시각 — 재응시 간격 강제
+    // quizAttempts/{uid}_{courseId}_{회차}: 응시 기록 — 점수가 정답과 일치할 때만 저장, 수정·삭제 불가
+    match /quizzes/{courseId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    match /quizKeys/{courseId} {
+      allow read, write: if isAdmin();
+    }
+
+    function quizKey(cid) { return get(/databases/$(database)/documents/quizKeys/$(cid)).data.answers; }
+    function quizDoc(cid) { return get(/databases/$(database)/documents/quizzes/$(cid)).data; }
+    function q1(a, k, i) { return (k.size() > i && a[i] == k[i]) ? 1 : 0; }
+    function quizScore(a, k) {
+      return q1(a, k, 0) + q1(a, k, 1) + q1(a, k, 2) + q1(a, k, 3) + q1(a, k, 4)
+           + q1(a, k, 5) + q1(a, k, 6) + q1(a, k, 7) + q1(a, k, 8) + q1(a, k, 9);
+    }
+
+    match /quizState/{sid} {
+      allow get: if isAdmin() || (isSignedIn() && sid.split('_')[0] == request.auth.uid);
+      allow create, update: if isSignedIn()
+        && sid == request.auth.uid + '_' + request.resource.data.courseId
+        && request.resource.data.keys().hasOnly(['courseId', 'lastAt', 'count'])
+        && request.resource.data.lastAt == request.time
+        && request.resource.data.count == (resource == null ? 1 : resource.data.count + 1)
+        // 재응시 간격: 마지막 응시 후 cooldownMin 분 경과
+        && (resource == null || request.time >= resource.data.lastAt
+              + duration.value(quizDoc(request.resource.data.courseId).get('cooldownMin', 3), 'm'))
+        // 응시 기록과 함께 쓰일 때만 허용
+        && existsAfter(/databases/$(database)/documents/quizAttempts/$(sid + '_' + string(request.resource.data.count)));
+      allow delete: if false;
+    }
+
+    function validQuizAttempt(aid) {
+      let d = request.resource.data;
+      let k = quizKey(d.courseId);
+      return isSignedIn()
+        && aid == request.auth.uid + '_' + d.courseId + '_' + string(d.n)
+        && d.keys().hasOnly(['uid', 'courseId', 'companyId', 'n', 'answers', 'score', 'total', 'passed', 'at'])
+        && d.uid == request.auth.uid
+        && d.companyId == myCompanyId()
+        && d.at == request.time
+        && d.n is int && d.n >= 1
+        && getAfter(/databases/$(database)/documents/quizState/$(request.auth.uid + '_' + d.courseId)).data.count == d.n
+        // 영상 95% 시청 후에만 응시
+        && get(/databases/$(database)/documents/progress/$(request.auth.uid)/lectures/$(d.courseId)).data.watched == true
+        && d.answers is list && d.answers.size() == k.size() && d.total == k.size()
+        && d.score == quizScore(d.answers, k)
+        && d.passed == (d.score * 100 >= k.size() * quizDoc(d.courseId).get('passPct', 70));
+    }
+    match /quizAttempts/{aid} {
+      allow read: if isAdmin()
+        || (isSignedIn() && resource.data.uid == request.auth.uid)
+        || isHrForCompany(resource.data.companyId);
+      allow create: if validQuizAttempt(aid);
+      allow update, delete: if false;
+    }
+
+    // ---------- 인증 메일 미수신 시 관리자 승인 요청 ----------
+    // joinRequests/{uid}: 이메일 인증을 못 한 본인이 요청, 메인 관리자만 승인·반려. 삭제 불가
+    match /joinRequests/{uid} {
+      allow get: if isSelf(uid) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isSelf(uid)
+        && request.auth.token.email_verified != true
+        && request.resource.data.keys().hasOnly(['email', 'name', 'status', 'requestedAt'])
+        && request.resource.data.email == myEmail()
+        && request.resource.data.status == 'pending'
+        && request.resource.data.requestedAt == request.time;
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ---------- 약관·개인정보 동의 기록 ----------
+    // consents/{uid}_{문서버전}: 본인이 동의할 때 서버 시각으로 한 번 기록, 이후 수정·삭제 불가
+    // 문서 ID: {uid}_{문서버전}.{처리구조}  (처리구조 entrust = 위탁형, provide = 제공형)
+    function consentOwner(cid) { return cid.split('_')[0]; }
+    match /consents/{cid} {
+      allow get: if isSelf(consentOwner(cid)) || isAdmin() || isHrForCompany(companyOf(consentOwner(cid)));
+      allow list: if isAdmin();
+      allow create: if isSignedIn()
+        && cid == request.auth.uid + '_' + request.resource.data.version + '.' + request.resource.data.mode
+        && request.resource.data.keys().hasOnly(
+             ['version', 'mode', 'companyId', 'companyName', 'terms', 'privacy', 'thirdParty', 'agreedAt'])
+        && request.resource.data.version is string
+        && request.resource.data.mode in ['entrust', 'provide']
+        && request.resource.data.terms == true && request.resource.data.privacy == true
+        // 제공형은 제3자 제공 동의까지 필수, 위탁형은 그 항목 자체가 없어야 함
+        && (request.resource.data.mode == 'entrust'
+              ? !('thirdParty' in request.resource.data)
+              : request.resource.data.thirdParty == true)
+        && request.resource.data.agreedAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // ---------- 이수확인서 ----------
+    // certificates/{id}: 발급 기록 — 메인 관리자·회사 관리자가 발급, 수정·삭제 불가
+    // settings/certSeq: 연도별 발급 일련번호 (회사 관리자도 1씩만 올릴 수 있음)
+    // 회사 관리자는 '자기 회사 소속 계정'에 대해서만 발급 가능, 정해진 항목만 기록
+    function certKeysOk() {
+      return request.resource.data.keys().hasOnly(
+        ['no', 'uid', 'name', 'companyId', 'companyName', 'trackId', 'trackName', 'type', 'week',
+         'lectureCount', 'assignmentCount', 'totalSec', 'issuedBy', 'issuedByName', 'issuedAt']);
+    }
+    match /certificates/{certId} {
+      allow read: if isAdmin()
+        || (isSignedIn() && resource.data.uid == request.auth.uid)
+        || isHrForCompany(resource.data.companyId);
+      allow create: if certKeysOk()
+        && (isAdmin()
+            || (isHrForCompany(request.resource.data.companyId)
+                && companyOf(request.resource.data.uid) == request.resource.data.companyId))
+        && request.resource.data.issuedBy == request.auth.uid
+        && request.resource.data.issuedAt == request.time
+        && request.resource.data.no is string;
+      allow update, delete: if false;
+    }
+
+    // ---------- 개인정보 접근 기록 ----------
+    // accessLogs/{자동ID}: 메인 관리자·회사 관리자가 수강생 개인정보를 열람·출력·발급한 기록
+    // (「개인정보의 안전성 확보조치 기준」의 접속기록 보관 취지) — 본인 명의·서버 시각으로만 추가,
+    // 수정·삭제 불가. 열람은 메인 관리자만.
+    match /accessLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn() && (isAdmin() || myRole() == 'client_hr')
+        && request.resource.data.keys().hasOnly(['by', 'role', 'companyId', 'action', 'targetUid', 'detail', 'at'])
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.role == myRole()
+        && request.resource.data.at == request.time
+        && request.resource.data.action is string && request.resource.data.action.size() <= 40
+        && (!('detail' in request.resource.data)
+            || (request.resource.data.detail is string && request.resource.data.detail.size() <= 200))
+        // 회사 관리자는 자기 회사 기록만
+        && (isAdmin() || request.resource.data.companyId == myCompanyId());
+      allow update, delete: if false;
+    }
+
+    // ---------- 개인정보 파기 기록 ----------
+    // purgeRecords/{id}: 서버 함수(purgeCompanyData)만 기록 — 고객사 파기 결과 통지용. 화면에서는 읽기만
+    match /purgeRecords/{recId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /settings/certSeq {
+      allow read: if isSignedIn();
+      allow write: if isAdmin()
+        || (isSignedIn() && myRole() == 'client_hr'
+            && request.resource.data.keys().hasOnly(['year', 'seq'])
+            && request.resource.data.seq is int
+            && request.resource.data.seq == (resource == null || resource.data.year != request.resource.data.year ? 1 : resource.data.seq + 1));
+    }
+
+    // ---------- 설정 (강의 카테고리 목록 등, 메인 관리자 전용) ----------
+    match /settings/{settingId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ---------- 과정 템플릿 (메인 관리자 전용) ----------
+    match /templates/{templateId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ---------- 회사별 과정(커리큘럼) ----------
+    // tracks/{id}: { companyId, name, kind, items: [{ courseId, week, order }] }
+    // - 메인 관리자: 전체 / 회사 관리자: 자기 회사 과정 조회 / 수강생: 자기 회사 과정 단건 조회만 (목록 조회 불가)
+    // - 구성 이력(history)은 추가만 가능, 수정·삭제 불가
+    function trackCompany(trackId) { return get(/databases/$(database)/documents/tracks/$(trackId)).data.companyId; }
+    match /tracks/{trackId} {
+      allow get: if isAdmin() || isHrForCompany(resource.data.companyId)
+        || (isSignedIn() && myCompanyId() == resource.data.companyId);
+      allow list: if isAdmin() || isHrForCompany(resource.data.companyId);
+      allow write: if isAdmin();
+
+      match /history/{historyId} {
+        allow read: if isAdmin() || isHrForCompany(trackCompany(trackId));
+        allow create: if isAdmin();
+        allow update, delete: if false;
+      }
+    }
+
+    // ---------- 진도 ----------
+    // 시청 기록은 나중에 '개선 기회 부여'의 증빙이 될 수 있으므로:
+    // - 본인만, 정해진 필드로만, 서버 시각을 찍어서 기록
+    // - 1회 저장당 증가폭 150초 이하 + 직전 저장 이후 실제 경과 시간 이하 (화면은 60초마다 저장)
+    //   → 개발자도구에서 watched:true / watchedSeconds:9999 를 직접 쓰는 위조 차단
+    // - 완료 표시는 누적 시청이 강의 길이의 95% 이상일 때만, 한 번 완료되면 되돌릴 수 없음
+    // - 일자별 수강 기록: sessions.{세션ID} = { s: 시청초, first: 시작, last: 마지막 저장 }
+    //   · 누적 시청이 늘어난 만큼 정확히 한 세션에만 더해져야 함 (세션 합계 = 누적 시청)
+    //   · first/last는 서버 시각만 허용, 한 세션은 같은 날(한국 시간) 안에서만 이어짐
+    // - 삭제 불가 (관리자 포함). 정정이 필요하면 콘솔에서 하고 별도 기록을 남길 것
+    function progressKeysOk() {
+      return request.resource.data.keys().hasOnly(
+        ['watchedSeconds', 'lastPosition', 'watched', 'completedAt', 'updatedAt', 'sid', 'sessions',
+         'quizPassed', 'quizPassedAt', 'quizAttemptId']);
+    }
+
+    function kstDay(t) { return (t + duration.value(9, 'h')).date(); }
+
+    function validSessionEntry(e, pe, gained) {
+      return e.keys().hasOnly(['s', 'first', 'last']) && e.s is int && e.last == request.time
+        && (
+          (pe == null && e.first == request.time && e.s == gained)
+          || (pe != null && e.first == pe.first && e.s == pe.s + gained
+              && kstDay(pe.first) == kstDay(request.time))
+        );
+    }
+
+    function validSessions(d, oSessions, gained) {
+      let nSessions = d.get('sessions', {});
+      let changedKeys = nSessions.diff(oSessions).affectedKeys();
+      return (gained == 0 && changedKeys.size() == 0)
+        || (gained > 0 && changedKeys.size() == 1 && changedKeys.hasOnly([d.sid])
+            && validSessionEntry(nSessions[d.sid], oSessions.get(d.sid, null), gained));
+    }
+
+    // 퀴즈 합격 표시: 같은 쓰기 묶음에서 만든 '합격' 응시 기록이 있어야만 허용, 한 번 합격하면 되돌릴 수 없음
+    function validQuizPass(uid, lectureId) {
+      let d = request.resource.data;
+      let at = getAfter(/databases/$(database)/documents/quizAttempts/$(d.quizAttemptId)).data;
+      return changed().hasOnly(['quizPassed', 'quizPassedAt', 'quizAttemptId'])
+        && resource.data.get('quizPassed', false) != true
+        && d.quizPassed == true && d.quizPassedAt == request.time
+        && at.uid == uid && at.courseId == lectureId && at.passed == true;
+    }
+
+    function validProgressCreate() {
+      let d = request.resource.data;
+      return progressKeysOk()
+        && d.updatedAt == request.time
+        && d.watchedSeconds is int
+        && d.watchedSeconds >= 0 && d.watchedSeconds <= 150
+        && d.get('watched', false) == false
+        && validSessions(d, {}, d.watchedSeconds);
+    }
+
+    function validProgressUpdate(lectureId) {
+      let d = request.resource.data;
+      let o = resource.data;
+      let gained = d.watchedSeconds - o.watchedSeconds;
+      let wasDone = o.get('watched', false) == true;
+      return progressKeysOk()
+        && !changed().hasAny(['quizPassed', 'quizPassedAt', 'quizAttemptId'])  // 퀴즈 합격은 아래 별도 경로로만
+        && d.updatedAt == request.time
+        && d.watchedSeconds is int
+        && gained >= 0 && gained <= 150
+        && gained * 1000 <= request.time.toMillis() - o.updatedAt.toMillis() + 5000
+        && validSessions(d, o.get('sessions', {}), gained)
+        && (
+          // 완료 상태 변화 없음
+          (d.get('watched', false) == wasDone
+            && d.get('completedAt', null) == o.get('completedAt', null))
+          // 미완료 → 완료 (누적 95% 이상일 때만)
+          || (!wasDone && d.watched == true && d.completedAt == request.time
+            && d.watchedSeconds >= get(/databases/$(database)/documents/courses/$(lectureId)).data.duration * 60 * 0.95)
+        );
+    }
+
+    match /progress/{uid} {
+      allow read: if isSelf(uid) || isAdmin() || isHrForCompany(companyOf(uid));
+      allow write: if false;
+
+      match /lectures/{lectureId} {
+        allow read: if isSelf(uid) || isAdmin() || isHrForCompany(companyOf(uid));
+        allow create: if isSelf(uid) && validProgressCreate();
+        allow update: if isSelf(uid) && (validProgressUpdate(lectureId) || validQuizPass(uid, lectureId));
+        allow delete: if false;
+      }
+    }
+
+    // =================================================================
+    // CNL Works 교육센터 (/edu/)
+    // 참여·신청·수료증 발급은 서버 함수(eduJoin, eduApply, eduIssueCertificate, eduIssueOffline, eduReviewReport)만 기록
+    // =================================================================
+    function eduVerifiedEmail() {
+      return isSignedIn() && request.auth.token.email_verified == true && request.auth.token.email != null;
+    }
+    // 회사 담당자: eduOrgs/{orgId}.hrEmails에 인증된 이메일이 등록된 사람
+    function eduOrgHr(orgId) {
+      return orgId != null && eduVerifiedEmail()
+        && request.auth.token.email in get(/databases/$(database)/documents/eduOrgs/$(orgId)).data.get('hrEmails', []);
+    }
+
+    match /eduCourses/{courseId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    match /eduOrgs/{orgId} {
+      allow read: if (eduVerifiedEmail() && request.auth.token.email in resource.data.get('hrEmails', [])) || isAdmin();
+      allow write: if isAdmin();
+    }
+    match /eduJoinCodes/{code} { allow read, write: if isAdmin(); }
+    match /eduInvites/{code} { allow read, write: if isAdmin(); }
+    match /eduLearners/{uid} {
+      allow read: if isSelf(uid) || isAdmin() || eduOrgHr(resource.data.get('orgId', null));
+      allow write: if isAdmin();
+    }
+    match /eduEnrollments/{id} {
+      allow read: if (isSignedIn() && resource.data.uid == request.auth.uid) || isAdmin()
+        || eduOrgHr(resource.data.get('orgId', null));
+      allow write: if isAdmin();
+    }
+    // 시청 기록: eduProgress/{uid}_{courseId}_{영상순번} — 본인만, 실제 경과 시간 이상으로 늘릴 수 없음
+    match /eduProgress/{id} {
+      function okKeys() { return request.resource.data.keys().hasOnly(['uid', 'courseId', 'idx', 'sec', 'pos', 'updatedAt']); }
+      function base() {
+        return okKeys() && request.resource.data.uid == request.auth.uid
+          && id == request.auth.uid + '_' + request.resource.data.courseId + '_' + string(request.resource.data.idx)
+          && request.resource.data.sec is int && request.resource.data.updatedAt == request.time
+          && (!('pos' in request.resource.data) || request.resource.data.pos is int);
+      }
+      allow read: if (isSignedIn() && id.matches('^' + request.auth.uid + '_.+$')) || isAdmin();
+      allow create: if isSignedIn() && base() && request.resource.data.sec >= 0 && request.resource.data.sec <= 90;
+      allow update: if isSignedIn() && base() && resource.data.uid == request.auth.uid
+        && request.resource.data.courseId == resource.data.courseId && request.resource.data.idx == resource.data.idx
+        && request.resource.data.sec >= resource.data.sec
+        && request.resource.data.sec - resource.data.sec <= 90
+        && request.resource.data.sec - resource.data.sec
+           <= (request.time.toMillis() - resource.data.updatedAt.toMillis()) / 1000 + 5;
+      allow delete: if false;
+    }
+    match /eduCertificates/{no} {
+      allow read: if (isSignedIn() && resource.data.uid == request.auth.uid) || isAdmin()
+        || eduOrgHr(resource.data.get('orgId', null));
+      allow update: if isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revoked', 'revokedAt', 'revokeReason']);
+      allow create, delete: if false;
+    }
+    match /eduOfflineBatches/{id} { allow read: if isAdmin(); allow write: if false; }
+    // ----- 조사실무 과정 -----
+    // 평가 정답: 관리자만 (수강생에게는 서버 함수 eduGetQuiz가 정답을 뺀 문항만 전달)
+    match /eduQuizKeys/{courseId} { allow read, write: if isAdmin(); }
+    // 평가 결과: 서버 함수만 기록, 본인과 관리자만 열람
+    match /eduQuizResults/{id} {
+      allow read: if (isSignedIn() && id.matches('^' + request.auth.uid + '_.+$')) || isAdmin();
+      allow write: if false;
+    }
+    // 모의사건 자료: 해당 과정을 수강 중이거나 수료한 사람과 관리자만
+    match /eduCaseFiles/{courseId} {
+      allow read: if isAdmin() || (isSignedIn()
+        && get(/databases/$(database)/documents/eduEnrollments/$(request.auth.uid + '_' + courseId)).data.status in ['active', 'done']);
+      allow write: if isAdmin();
+    }
+    // 조사보고서: eduReports/{uid}_{courseId}
+    //   수강생은 본문(body)만 작성·수정 — 작성 중이거나 보완 요청 상태일 때만
+    //   제출·검토 상태(status 등)는 서버 함수(eduSubmitReport, eduReviewReport)만 기록
+    match /eduReports/{id} {
+      function okBody() {
+        return request.resource.data.body is string && request.resource.data.body.size() <= 30000
+          && request.resource.data.updatedAt == request.time;
+      }
+      allow read: if (isSignedIn() && id.matches('^' + request.auth.uid + '_.+$')) || isAdmin();
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly(['uid', 'courseId', 'body', 'updatedAt'])
+        && request.resource.data.uid == request.auth.uid
+        && id == request.auth.uid + '_' + request.resource.data.courseId
+        && get(/databases/$(database)/documents/eduEnrollments/$(id)).data.status == 'active'
+        && okBody();
+      allow update: if isSignedIn() && resource.data.uid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['body', 'updatedAt'])
+        && resource.data.get('status', 'draft') in ['draft', 'revision']
+        && okBody();
+      allow delete: if false;
+    }
+    match /eduCounters/{id} { allow read, write: if false; }
+    // 기업 교육 신청, 홈페이지 Q&A — 등록은 서버 함수(siteApi)만, 열람·관리는 메인 관리자만
+    match /eduContractRequests/{id} { allow read, update: if isAdmin(); allow create, delete: if false; }
+    // 개인 수강 결제 주문 — 생성·승인은 서버 함수(siteApi)만, 열람은 메인 관리자만
+    match /eduOrders/{id} { allow read: if isAdmin(); allow write: if false; }
+    match /qna/{id} { allow read, delete: if isAdmin(); allow create, update: if false; }
+    match /qnaSecret/{id} { allow read, delete: if isAdmin(); allow create, update: if false; }
+    // Q&A 공지: 관리자가 교육센터에서 작성, 홈페이지에는 서버 함수(siteApi)로 제공
+    match /qnaNotices/{id} { allow read, write: if isAdmin(); }
+    match /siteMeta/{id} { allow read, write: if false; }
+  }
+}
