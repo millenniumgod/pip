@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 입력값이 어디로도 전송되지 않도록 네트워크 연결을 브라우저 수준에서 차단 -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+  <title>자본주의 팔자 리포트</title>
+  <meta name="description" content="8문항으로 보는 나의 경제적 궤적과, 더 잘 살기 위해 해야 할 일. 입력값은 저장되지 않습니다.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="wrap">
+
+  <section id="intro" class="hero">
+    <p class="eyebrow">자본주의 팔자 리포트</p>
+    <h1>지금 이대로면 어떻게 살게 될까?<br>더 잘 살려면 뭘 해야 할까?</h1>
+    <p class="lead">8문항, 1분. 공개 통계로 나의 궤적(A)을 계산하고, 수만 가지 경우의 수 중에서 해야 할 일(B)을 골라드립니다.</p>
+    <p class="privacy">🔒 입력하신 정보는 <strong>서버로 전송되거나 저장되지 않습니다.</strong> 모든 계산은 이 브라우저 안에서만 이루어지고, 창을 닫으면 사라집니다.</p>
+  </section>
+
+  <form id="form" novalidate autocomplete="off">
+
+    <fieldset class="group">
+      <legend><span class="tag">1주</span> 시대운 <small>언제 시장에 던져졌는가</small></legend>
+      <div class="field" data-field="birth">
+        <label for="birth">1. 태어난 해</label>
+        <select id="birth" name="birth"><option value="">선택</option></select>
+        <p class="err" hidden></p>
+      </div>
+      <div class="field" data-field="entry">
+        <label for="entry">2. 사회에 첫 진출한 해</label>
+        <select id="entry" name="entry" disabled><option value="">태어난 해를 먼저 선택하세요</option></select>
+        <p class="err" hidden></p>
+      </div>
+    </fieldset>
+
+    <fieldset class="group">
+      <legend><span class="tag">2주</span> 직장운 <small>초기값과 현재의 생존력</small></legend>
+      <div class="field" data-field="tier">
+        <span class="label">3. 첫 직장</span>
+        <div class="chips" role="radiogroup" aria-label="첫 직장">
+          <label class="chip"><input type="radio" name="tier" value="big"><span>대기업·금융</span></label>
+          <label class="chip"><input type="radio" name="tier" value="mid"><span>중견·공공</span></label>
+          <label class="chip"><input type="radio" name="tier" value="small"><span>중소·스타트업</span></label>
+          <label class="chip"><input type="radio" name="tier" value="etc"><span>기타</span></label>
+        </div>
+        <p class="err" hidden></p>
+      </div>
+      <div class="field" data-field="role">
+        <span class="label">4. 현재 직무</span>
+        <div class="chips" role="radiogroup" aria-label="현재 직무">
+          <label class="chip"><input type="radio" name="role" value="dev"><span>IT개발</span></label>
+          <label class="chip"><input type="radio" name="role" value="sales"><span>영업·마케팅</span></label>
+          <label class="chip"><input type="radio" name="role" value="admin"><span>경영지원</span></label>
+          <label class="chip"><input type="radio" name="role" value="field"><span>생산·현장직</span></label>
+          <label class="chip"><input type="radio" name="role" value="research"><span>연구·전문직</span></label>
+          <label class="chip"><input type="radio" name="role" value="service"><span>서비스·판매</span></label>
+          <label class="chip"><input type="radio" name="role" value="etc"><span>기타</span></label>
+        </div>
+        <p class="err" hidden></p>
+      </div>
+    </fieldset>
+
+    <fieldset class="group">
+      <legend><span class="tag">3주</span> 소득운 <small>노동의 가치 팽창률</small></legend>
+      <div class="field" data-field="startPay">
+        <label for="startPay">5. 첫 연봉 (세전)</label>
+        <div class="money"><input id="startPay" name="startPay" inputmode="numeric" placeholder="3,500"><span>만 원</span></div>
+        <p class="err" hidden></p>
+      </div>
+      <div class="field" data-field="curPay">
+        <label for="curPay">6. 현재 연봉 (세전)</label>
+        <div class="money"><input id="curPay" name="curPay" inputmode="numeric" placeholder="5,500"><span>만 원</span></div>
+        <p class="err" hidden></p>
+      </div>
+    </fieldset>
+
+    <fieldset class="group">
+      <legend><span class="tag">4주</span> 자산운 <small>잉여 현금흐름과 인프라</small></legend>
+      <div class="field" data-field="housing">
+        <span class="label">7. 현재 사는 집</span>
+        <div class="chips" role="radiogroup" aria-label="현재 사는 집">
+          <label class="chip"><input type="radio" name="housing" value="own"><span>자가</span></label>
+          <label class="chip"><input type="radio" name="housing" value="jeonse"><span>전세</span></label>
+          <label class="chip"><input type="radio" name="housing" value="rent"><span>월세</span></label>
+        </div>
+        <p class="err" hidden></p>
+      </div>
+      <div class="field" data-field="netWorth">
+        <label for="netWorth">8. 굴릴 수 있는 순자산</label>
+        <div class="money"><input id="netWorth" name="netWorth" inputmode="numeric" placeholder="4,000"><span>만 원</span></div>
+        <label class="inline"><input type="checkbox" id="negative"> 빚이 더 많아요 (순자산이 마이너스)</label>
+        <p class="hint">부동산, 예적금, 주식을 다 합치고 남은 빚(대출)을 뺀, 순수 내 돈만 적어주세요.</p>
+        <p class="err" hidden></p>
+      </div>
+    </fieldset>
+
+    <button type="submit" class="primary">내 팔자 계산하기</button>
+    <p class="fine">공개 통계 기반의 추정 모델입니다. 투자 권유나 개인 맞춤 재무 상담이 아닙니다.</p>
+  </form>
+
+  <section id="result" hidden></section>
+
+</main>
+
+<script src="data.js"></script>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
