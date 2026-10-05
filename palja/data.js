@@ -37,23 +37,21 @@
     2020: { name: '코로나19', penalty: 15 }
   };
 
-  // 첫 직장 계급: 이중구조 시작점
+  // 처음 일을 시작한 곳: 소득 성장·안정성의 출발점
+  //  raise: 기대 연 소득 상승률, stab: 안정성 점수(0~100), endAdj: 노동 수명 보정(세)
   var tiers = {
-    big:   { label: '대기업·금융',   raise: 0.045, stab: 80, endAdj: -1 },
-    mid:   { label: '중견·공공',     raise: 0.038, stab: 65, endAdj: 1 },
-    small: { label: '중소·스타트업', raise: 0.030, stab: 45, endAdj: 0 },
-    etc:   { label: '기타',          raise: 0.025, stab: 40, endAdj: 0 }
-  };
-
-  // 현재 직무: 소득을 유지할 수 있는 나이(경제적 노동 수명)의 추정 기준
-  var roles = {
-    dev:      { label: 'IT개발',       workEnd: 54 },
-    sales:    { label: '영업·마케팅',  workEnd: 54 },
-    admin:    { label: '경영지원',     workEnd: 55 },
-    field:    { label: '생산·현장직',  workEnd: 55 },
-    research: { label: '연구·전문직',  workEnd: 58 },
-    service:  { label: '서비스·판매',  workEnd: 55 },
-    etc:      { label: '기타',         workEnd: 55 }
+    big:      { label: '대기업',                   raise: 0.045, stab: 80, endAdj: -1 },
+    mid:      { label: '중견기업',                 raise: 0.040, stab: 68, endAdj: 0 },
+    small:    { label: '중소기업',                 raise: 0.032, stab: 48, endAdj: 0 },
+    startup:  { label: '스타트업',                 raise: 0.045, stab: 35, endAdj: -1 },
+    pubcorp:  { label: '공기업·공공기관',          raise: 0.038, stab: 85, endAdj: 1 },
+    civil:    { label: '공무원·교직원',            raise: 0.033, stab: 92, endAdj: 1 },
+    shop:     { label: '소상공인·자영업',          raise: 0.030, stab: 30, endAdj: 2 },
+    free:     { label: '프리랜서·1인 사업자',      raise: 0.035, stab: 30, endAdj: 1 },
+    pro:      { label: '전문직 개업(의사·변호사 등)', raise: 0.045, stab: 60, endAdj: 1 },
+    agri:     { label: '농림어업',                 raise: 0.025, stab: 35, endAdj: 2 },
+    parttime: { label: '아르바이트·계약직',        raise: 0.025, stab: 25, endAdj: 0 },
+    etc:      { label: '기타',                     raise: 0.028, stab: 40, endAdj: 0 }
   };
 
   // 세후 소득 추정용 실효 공제율 (소득세 + 4대보험 근사), [연봉(만원), 공제율]
@@ -66,9 +64,10 @@
     '통계: 연도별 실업률·GDP 성장률·소비자물가는 통계청·한국은행 공개 통계를 반올림한 근사치입니다.',
     '물가: 장기 물가상승률 연 2.0%, 모든 금액은 현재 가치(실질) 기준으로 계산합니다.',
     '소득 성장: 지금까지의 연봉 상승률과 첫 직장 규모별 기대 상승률을 반반 섞어 시작하고, 매년 줄어 물가 수준에 수렴합니다. 50세 이후 실질 임금 상승은 0으로 둡니다.',
-    '노동 수명: 직무별로 소득을 유지할 수 있는 나이(IT개발 54세, 연구·전문직 58세 등)에 첫 직장 규모를 보정한 추정값입니다.',
+    '노동 수명: 현재 직무(대·중·소분류)별로 소득을 유지할 수 있는 나이를 추정하고, 첫 일터 형태에 따라 ±1~2세를 보정합니다.',
     '저축률: 주거 형태·연봉에서 추정한 값과, 지금까지 쌓은 순자산에서 거꾸로 구한 값을 6:4로 섞습니다. 지출은 소득이 늘면 일부만 따라 늘어납니다.',
-    '수익률: 순자산 전체에 실질 연 2.5%(은퇴 후 2.0%)를 적용합니다. 자가라면 집값도 순자산에 포함되며, 주택연금 등은 반영하지 않습니다.',
+    '수익률: 금융자산에 실질 연 2.5%(은퇴 후 2.0%)를 적용합니다.',
+    '주거: 전세·월세 보증금은 계속 거주해야 하므로 쓸 수 있는 돈에서 제외합니다. 자가는 집값의 50%만 주택연금·다운사이징으로 쓸 수 있다고 보고, 집값은 실질 연 1% 오른다고 가정합니다. 월세는 입력한 금액을 저축률 추정에 반영합니다.',
     '경제적 자유: 은퇴 후 지출(현재 지출의 80%)을 자산의 3.5%로 감당할 수 있는 시점입니다.',
     '노후: 국민연금은 65세부터 평균 소득의 25%(가입 30년 기준)로 단순 추정하고, 90세까지를 계획 기준으로 봅니다.',
     '세금·상속·증여·자녀·가족 구성, 개인별 부채 상환 일정은 반영하지 않습니다.'
@@ -81,7 +80,6 @@
     macro: macro,
     crises: crises,
     tiers: tiers,
-    roles: roles,
     taxPoints: taxPoints,
     assumptions: assumptions,
     pi: 0.02,          // 장기 물가상승률
@@ -93,6 +91,9 @@
     pensionAge: 65,
     pensionRate: 0.25,
     pensionCap: 6000,
-    saveBase: { own: 0.22, jeonse: 0.25, rent: 0.15 }
+    saveBase: { own: 0.22, jeonse: 0.25, rent: 0.22 },
+    homeUsable: 0.5,   // 자가: 집값 중 노후에 쓸 수 있다고 보는 비율(주택연금·다운사이징)
+    homeGrowth: 0.01,  // 자가: 집값 실질 상승률
+    rentSaveShare: 0.35 // 월세 → 공공임대·전세 전환 시 줄일 수 있는 월세 비율
   };
 });

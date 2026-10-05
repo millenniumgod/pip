@@ -74,7 +74,7 @@
       workDelta: c.wd + OPT.work[idx.work],
       side: OPT.side[idx.side],
       retAdd: OPT.ret[idx.ret],
-      houseCut: idx.house ? 0.08 : 0,
+      houseSave: idx.house ? D.rentSaveShare * P.rentAnnual : 0,
       ptYears: OPT.pt[idx.pt],
       delay: delay || 0
     };
@@ -95,13 +95,13 @@
       + (idx.work ? 1 : 0) + (idx.pt ? 1 : 0) + (idx.house ? 1 : 0);
   }
 
-  var NO_LEVER = { add: 0, incMult: 1, workDelta: 0, side: 0, retAdd: 0, houseCut: 0, ptYears: 0, delay: 0 };
+  var NO_LEVER = { add: 0, incMult: 1, workDelta: 0, side: 0, retAdd: 0, houseSave: 0, ptYears: 0, delay: 0 };
 
   /* ---------- 프로필(입력 → 모델 파라미터) ---------- */
   function buildProfile(input) {
     var now = D.nowYear;
     var tier = D.tiers[input.tier];
-    var role = D.roles[input.role];
+    var role = input.roleInfo;
     var age = now - input.birth;
     var yearsPast = Math.max(1, now - input.entry);
 
@@ -113,7 +113,17 @@
     var g0 = clamp(0.5 * cagr + 0.5 * tier.raise, 0, 0.09);
 
     var net0 = netOf(input.curPay);
-    var srModel = D.saveBase[input.housing] + Math.min(0.12, Math.max(0, (input.curPay - 4000) / 1000 * 0.02));
+    var own = input.housing === 'own';
+    var rentAnnual = input.housing === 'rent' ? (input.rent || 0) * 12 : 0;
+
+    // 거주 중인 집(자가 시세, 전세·월세 보증금)에 묶인 순자산 / 금융자산 분리
+    var housingValue = input.houseValue || 0;
+    var locked = clamp(input.netWorth, 0, housingValue);
+    var F0 = input.netWorth - locked;
+
+    var srModel = D.saveBase[input.housing]
+      + Math.min(0.12, Math.max(0, (input.curPay - 4000) / 1000 * 0.02))
+      - 0.6 * rentAnnual / net0;
     var avgNet = netOf((input.startPay + input.curPay) / 2);
     var srObs = input.netWorth > 0 ? clamp(input.netWorth / yearsPast / avgNet, 0, 0.6) : 0;
     var sr = clamp(0.6 * srModel + 0.4 * srObs, 0.03, 0.55);
@@ -123,46 +133,56 @@
       age: age, yearsPast: yearsPast,
       cagr: cagr, avgInfl: avgInfl, realCagr: realCagr,
       g0: g0, I0: input.curPay, net0: net0, saveRate: sr,
-      S0: net0 * (1 - sr), A0: input.netWorth,
+      S0: net0 * (1 - sr),
+      own: own, rentAnnual: rentAnnual, locked: locked, F0: F0,
+      U0: F0 + (own ? D.homeUsable * locked : 0),
       W0: Math.max(age + 1, role.workEnd + tier.endAdj),
       housing: input.housing
     };
   }
 
   /* ---------- 한 번의 시뮬레이션 ---------- */
-  function simulate(P, L, retAdj) {
+  // F: 금융자산, H: 집(보증금)에 묶인 자산. 쓸 수 있는 돈 U = F + (자가면 H의 일부).
+  // tr(선택)를 넘기면 [나이, U] 곡선을 채운다.
+  function simulate(P, L, retAdj, tr) {
     var a0 = P.age;
     var W = Math.max(a0 + 1, P.W0 + L.workDelta);
     var d = L.delay;
     var rBase = D.rReal + (retAdj || 0);
-    var A = P.A0, I = P.I0, S = P.S0, sumI = 0, n = 0, freedom = null;
-    var a, t, net, on, r;
+    var hu = P.own ? D.homeUsable : 0, hg = P.own ? D.homeGrowth : 0;
+    var F = P.F0, H = P.locked, I = P.I0, S = P.S0, sumI = 0, n = 0, freedom = null;
+    var a, t, net, on, r, U;
+    if (tr) tr.push([a0, F + hu * H]);
 
     for (a = a0, t = 0; a < W; a++, t++) {
       if (t > 0 && a < 50) I *= (1 + Math.max(D.pi, P.g0 - 0.0035 * t)) / (1 + D.pi);
       if (t === d) I *= L.incMult;
       net = netOf(I);
       on = t >= d;
-      S = P.S0 * Math.sqrt(net / P.net0) * (on ? 1 - L.houseCut : 1);
+      S = Math.max(0, P.S0 * Math.sqrt(net / P.net0) - (on ? L.houseSave : 0));
       r = rBase + (on ? L.retAdd : 0);
-      A = A * (1 + r) + net - S + (on ? L.side * 10.2 + L.add * 12 : 0);
+      F = F * (1 + r) + net - S + (on ? L.side * 10.2 + L.add * 12 : 0);
+      H *= 1 + hg;
+      U = F + hu * H;
       sumI += I; n++;
-      if (freedom === null && A >= D.retireSpend * S / D.swr) freedom = a + 1;
+      if (tr) tr.push([a + 1, U]);
+      if (freedom === null && U >= D.retireSpend * S / D.swr) freedom = a + 1;
     }
 
-    var assetsW = A, Slast = S, Ilast = I;
+    var assetsW = U === undefined ? F + hu * H : U, lockedW = H, Slast = S, Ilast = I;
 
     // 노동 수명 이후에도 계속 일한다고 가정했을 때의 경제적 자유 시점(80세까지만 탐색)
     if (freedom === null) {
-      var A2 = A;
+      var F2 = F;
       for (a = W; a < 80; a++) {
         t = a - a0;
         net = netOf(Ilast);
         on = t >= d;
-        S = P.S0 * Math.sqrt(net / P.net0) * (on ? 1 - L.houseCut : 1);
+        S = Math.max(0, P.S0 * Math.sqrt(net / P.net0) - (on ? L.houseSave : 0));
         r = rBase + (on ? L.retAdd : 0);
-        A2 = A2 * (1 + r) + net - S + (on ? L.side * 10.2 + L.add * 12 : 0);
-        if (A2 >= D.retireSpend * S / D.swr) { freedom = a + 1; break; }
+        F2 = F2 * (1 + r) + net - S + (on ? L.side * 10.2 + L.add * 12 : 0);
+        H *= 1 + hg;
+        if (F2 + hu * H >= D.retireSpend * S / D.swr) { freedom = a + 1; break; }
       }
     }
 
@@ -177,11 +197,13 @@
     else {
       for (a = W; a < 100; a++) {
         B = B * (1 + rr) - R + (a - W < L.ptYears ? PART_TIME_PAY : 0) + (a >= D.pensionAge ? pension : 0);
-        if (B < 0) { dep = a; break; }
+        if (B < 0) { dep = a; if (tr) tr.push([a + 1, 0]); break; }
+        if (tr) tr.push([a + 1, B]);
       }
     }
+    if (tr && dep === W) tr.push([W, 0]);
 
-    return { W: W, assetsW: assetsW, dep: dep, freedom: freedom, pension: pension, R: R };
+    return { W: W, assetsW: assetsW, lockedW: lockedW, dep: dep, freedom: freedom, pension: pension, R: R };
   }
 
   function range(P, L) {
@@ -197,7 +219,7 @@
   /* ---------- 경우의 수 전수 탐색 ---------- */
   function search(P, base) {
     var idx = { add: 0, career: 0, side: 0, ret: 0, work: 0, pt: 0, house: 0 };
-    var houseMax = P.housing === 'rent' ? 1 : 0;
+    var houseMax = P.housing === 'rent' && P.rentAnnual > 0 ? 1 : 0;
     var total = 0, realistic = 0, goalCount = 0;
     var close = null, partial = null, early = null;
     var baseMet = goalMet(P, NO_LEVER, base);
@@ -268,8 +290,8 @@
       '고정비·구독을 점검하고, 급여일에 자동이체로 먼저 떼어 두기', '이번 달', 0);
     if (idx.ret)    push('ret', idx.ret, '자산 운용 수익률 +' + (OPT.ret[idx.ret] * 100).toFixed(1) + '%p',
       '예·적금 위주라면 분산투자 비중을 점검 (원금 손실 위험이 있으며, 특정 상품 추천이 아님)', '이번 분기', 1);
-    if (idx.house)  push('house', 1, '주거비 구조 개선 (월세 → 공공임대·전세 전환)',
-      '청년·신혼 등 자격 요건에 맞는 공공임대·전세대출 상품 검토', '1~2년 안', 2);
+    if (idx.house)  push('house', 1, '주거비 구조 개선 (월세 → 공공임대·전세 전환, 연 약 ' + Math.round(D.rentSaveShare * P.rentAnnual).toLocaleString('ko-KR') + '만 원 절감)',
+      '자격 요건에 맞는 공공임대·전세대출 상품을 검토해 월세 부담을 줄이기', '1~2년 안', 2);
     if (idx.side)   push('side', idx.side, '부업·N잡으로 월 ' + OPT.side[idx.side] + '만 원 더 벌기',
       '본업 전문성을 외부에 파는 형태(강의·외주·컨설팅)가 가장 지속 가능', '1년 안', 3);
     if (idx.career) push('career', idx.career, OPT.career[idx.career].label,
@@ -295,7 +317,7 @@
     var income = clamp(50 + P.realCagr * 100 * 7, 0, 100);
 
     var target0 = D.retireSpend * P.S0 / D.swr;
-    var progress = P.A0 / target0;
+    var progress = P.U0 / target0;
     var expected = clamp((P.age - 25) / 40, 0.05, 1);
     var asset = clamp(progress / expected * 100, 0, 100);
 
@@ -303,7 +325,8 @@
       era:    { score: Math.round(era), label: eraLabel, year: inp.entry, unemp: m.unemp, gdp: m.gdp, crisis: crisis ? crisis.name : null },
       job:    { score: Math.round(job), tier: P.tier.label, role: P.role.label, workEnd: P.W0 },
       income: { score: Math.round(income), cagr: P.cagr, avgInfl: P.avgInfl, realCagr: P.realCagr },
-      asset:  { score: Math.round(asset), progress: progress, target: target0, saveRate: P.saveRate }
+      asset:  { score: Math.round(asset), progress: progress, target: target0, saveRate: P.saveRate,
+                usable: P.U0, locked: P.locked, housing: P.housing, own: P.own }
     };
   }
 
@@ -315,11 +338,15 @@
     var Lb = leverSet(P, s.pick.idx, 0);
     var B = range(P, Lb);
     var Bdelay = simulate(P, leverSet(P, s.pick.idx, 3), 0);
+    var trA = [], trB = [];
+    simulate(P, NO_LEVER, 0, trA);
+    simulate(P, Lb, 0, trB);
     return {
       profile: P,
       diag: diagnose(P),
       A: A,
       B: B,
+      traces: { A: trA, B: trB },
       mode: s.mode,
       actions: describe(P, s.pick.idx, A.mid),
       difficulty: s.pick.diff,
